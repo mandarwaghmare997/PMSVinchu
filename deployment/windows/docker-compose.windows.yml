@@ -1,0 +1,328 @@
+version: '3.8'
+
+# Windows-optimized Docker Compose configuration for PMS Intelligence Hub
+# This configuration addresses Windows-specific Docker networking and volume mounting
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: pms_postgres_win
+    environment:
+      POSTGRES_DB: pms_db
+      POSTGRES_USER: pms_user
+      POSTGRES_PASSWORD: pms_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
+    volumes:
+      # Use named volumes for better Windows compatibility
+      - postgres_data_win:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+    networks:
+      - pms_network_win
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pms_user -d pms_db"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    # Windows-specific memory limits
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: pms_redis_win
+    command: redis-server --appendonly yes --requirepass pms_redis_password --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data_win:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - pms_network_win
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+  # FastAPI Backend
+  api:
+    build:
+      context: .
+      dockerfile: deployment/windows/Dockerfile.api.windows
+    container_name: pms_api_win
+    environment:
+      - DATABASE_URL=postgresql://pms_user:pms_password@postgres:5432/pms_db
+      - REDIS_URL=redis://:pms_redis_password@redis:6379/0
+      - DEBUG=false
+      - ENVIRONMENT=production
+      - PYTHONPATH=/app
+      # Windows-specific environment variables
+      - PYTHONIOENCODING=utf-8
+      - LANG=C.UTF-8
+    volumes:
+      # Use forward slashes for Windows Docker volume mounts
+      - ./uploads:/app/uploads
+      - ./exports:/app/exports
+      - ./logs:/app/logs
+      - ./cache:/app/cache
+    ports:
+      - "8000:8000"
+    networks:
+      - pms_network_win
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # Streamlit Dashboard
+  dashboard:
+    build:
+      context: .
+      dockerfile: deployment/windows/Dockerfile.dashboard.windows
+    container_name: pms_dashboard_win
+    environment:
+      - API_BASE_URL=http://api:8000
+      - DATABASE_URL=postgresql://pms_user:pms_password@postgres:5432/pms_db
+      - REDIS_URL=redis://:pms_redis_password@redis:6379/0
+      - PYTHONPATH=/app
+      # Windows-specific environment variables
+      - PYTHONIOENCODING=utf-8
+      - LANG=C.UTF-8
+      # Streamlit-specific settings for Windows
+      - STREAMLIT_SERVER_HEADLESS=true
+      - STREAMLIT_SERVER_ENABLE_CORS=false
+      - STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION=false
+    volumes:
+      - ./cache:/app/cache
+      - ./exports:/app/exports
+      - ./logs:/app/logs
+    ports:
+      - "8501:8501"
+    networks:
+      - pms_network_win
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # Nginx Reverse Proxy (Windows-compatible)
+  nginx:
+    image: nginx:alpine
+    container_name: pms_nginx_win
+    volumes:
+      - ./deployment/windows/nginx.windows.conf:/etc/nginx/nginx.conf:ro
+      - ./static:/var/www/static:ro
+      # Windows-compatible SSL volume mount
+      - nginx_ssl_win:/etc/nginx/ssl
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - pms_network_win
+    depends_on:
+      - api
+      - dashboard
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+  # Data Ingestion Worker (Celery)
+  worker:
+    build:
+      context: .
+      dockerfile: deployment/windows/Dockerfile.worker.windows
+    container_name: pms_worker_win
+    environment:
+      - DATABASE_URL=postgresql://pms_user:pms_password@postgres:5432/pms_db
+      - REDIS_URL=redis://:pms_redis_password@redis:6379/0
+      - CELERY_BROKER_URL=redis://:pms_redis_password@redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://:pms_redis_password@redis:6379/2
+      - PYTHONPATH=/app
+      - PYTHONIOENCODING=utf-8
+      - LANG=C.UTF-8
+    volumes:
+      - ./uploads:/app/uploads
+      - ./cache:/app/cache
+      - ./logs:/app/logs
+    networks:
+      - pms_network_win
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  # Celery Beat Scheduler
+  scheduler:
+    build:
+      context: .
+      dockerfile: deployment/windows/Dockerfile.scheduler.windows
+    container_name: pms_scheduler_win
+    environment:
+      - DATABASE_URL=postgresql://pms_user:pms_password@postgres:5432/pms_db
+      - REDIS_URL=redis://:pms_redis_password@redis:6379/0
+      - CELERY_BROKER_URL=redis://:pms_redis_password@redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://:pms_redis_password@redis:6379/2
+      - PYTHONPATH=/app
+      - PYTHONIOENCODING=utf-8
+      - LANG=C.UTF-8
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - pms_network_win
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+  # Monitoring with Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: pms_prometheus_win
+    volumes:
+      - ./deployment/windows/prometheus.windows.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data_win:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - pms_network_win
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  # Grafana for Dashboards
+  grafana:
+    image: grafana/grafana:latest
+    container_name: pms_grafana_win
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+      # Windows-specific Grafana settings
+      - GF_PATHS_DATA=/var/lib/grafana
+      - GF_PATHS_LOGS=/var/log/grafana
+      - GF_PATHS_PLUGINS=/var/lib/grafana/plugins
+    volumes:
+      - grafana_data_win:/var/lib/grafana
+      - ./deployment/windows/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./deployment/windows/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    ports:
+      - "3000:3000"
+    networks:
+      - pms_network_win
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+# Named volumes for Windows compatibility
+volumes:
+  postgres_data_win:
+    driver: local
+  redis_data_win:
+    driver: local
+  prometheus_data_win:
+    driver: local
+  grafana_data_win:
+    driver: local
+  nginx_ssl_win:
+    driver: local
+
+# Windows-optimized network configuration
+networks:
+  pms_network_win:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.21.0.0/16
+          gateway: 172.21.0.1
+    driver_opts:
+      com.docker.network.bridge.name: pms_bridge_win
+      com.docker.network.bridge.enable_icc: "true"
+      com.docker.network.bridge.enable_ip_masquerade: "true"
+

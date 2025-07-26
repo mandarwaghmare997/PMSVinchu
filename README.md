@@ -686,3 +686,66 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 For the latest updates and releases, watch this repository and join our community discussions.
 
+
+
+## 🪟 Windows Deployment
+
+### Quick Windows Setup
+```cmd
+git clone https://github.com/mandarwaghmare997/PMSVinchu.git
+cd PMSVinchu
+deployment\windows\setup.bat
+```
+
+### Windows Deployment Options
+
+#### 1. One-Click Setup (Recommended)
+```cmd
+deployment\windows\setup.bat
+```
+Perfect for first-time users with guided interactive setup.
+
+#### 2. Command Line Deployment
+```cmd
+# Local development
+deployment\windows\deploy.bat local
+
+# Docker deployment
+deployment\windows\deploy.bat docker
+```
+
+#### 3. PowerShell Advanced
+```powershell
+# Local with verbose logging
+.\deployment\windows\deploy.ps1 -Environment local -Verbose
+
+# Windows service installation (requires admin)
+.\deployment\windows\deploy.ps1 -Environment service
+```
+
+#### 4. Windows Service (Production)
+```cmd
+# Install as Windows service (requires admin)
+deployment\windows\service\install_service.bat
+
+# Service management
+net start PMSIntelligenceHub
+net stop PMSIntelligenceHub
+```
+
+### Windows-Specific Features
+- **🎯 One-Click Setup**: Interactive guided installation
+- **🔧 Windows Service**: Production-ready service with auto-start
+- **🐳 Docker Desktop**: Optimized for Windows containers
+- **⚡ PowerShell**: Advanced automation with error handling
+- **📊 Monitoring**: Built-in health checks and logging
+- **🛡️ Security**: Windows-integrated authentication
+
+### Windows Requirements
+- **OS**: Windows 10 (1903+) or Windows 11
+- **Python**: 3.8+ (with "Add to PATH" enabled)
+- **Memory**: 4GB minimum, 8GB recommended
+- **Storage**: 10GB free space
+
+For detailed Windows deployment instructions, see [Windows Deployment Guide](docs/WINDOWS_DEPLOYMENT.md).
+
