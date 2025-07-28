@@ -59,6 +59,37 @@ if errorlevel 1 (
 for /f "tokens=2" %%i in ('python --version 2^>^&1') do set PYTHON_VERSION=%%i
 echo ✓ Python %PYTHON_VERSION% found
 
+REM Check Python version (check for 3.8+)
+REM Extract major and minor version numbers
+for /f "tokens=1,2 delims=." %%a in ("%PYTHON_VERSION%") do (
+    set MAJOR=%%a
+    set MINOR=%%b
+)
+
+REM Remove any non-numeric characters from minor version
+for /f "tokens=1 delims= " %%a in ("%MINOR%") do set MINOR=%%a
+
+REM Check if major version is 3 and minor version is 8 or higher
+if "%MAJOR%"=="3" (
+    if %MINOR% geq 8 (
+        echo ✓ Python version check passed
+    ) else (
+        echo.
+        echo ERROR: Python 3.8+ is required. Found: %PYTHON_VERSION%
+        echo Please install Python 3.8 or higher from https://python.org
+        echo.
+        pause
+        exit /b 1
+    )
+) else (
+    echo.
+    echo ERROR: Python 3.8+ is required. Found: %PYTHON_VERSION%
+    echo Please install Python 3.8 or higher from https://python.org
+    echo.
+    pause
+    exit /b 1
+)
+
 REM Check pip
 pip --version >nul 2>&1
 if errorlevel 1 (

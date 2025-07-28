@@ -67,9 +67,21 @@ function Test-Prerequisites {
         
         Write-Log "Found Python: $pythonVersion"
         
-        # Check Python version
-        if ($pythonVersion -notmatch "Python 3\.([8-9]|\d{2})") {
-            Write-Log "Python 3.8+ is required. Found: $pythonVersion" "ERROR"
+        # Check Python version - support 3.8 and higher
+        if ($pythonVersion -match "Python (\d+)\.(\d+)") {
+            $majorVersion = [int]$matches[1]
+            $minorVersion = [int]$matches[2]
+            
+            if ($majorVersion -eq 3 -and $minorVersion -ge 8) {
+                Write-Log "Python version check passed: $pythonVersion"
+            } elseif ($majorVersion -gt 3) {
+                Write-Log "Python version check passed: $pythonVersion"
+            } else {
+                Write-Log "Python 3.8+ is required. Found: $pythonVersion" "ERROR"
+                return $false
+            }
+        } else {
+            Write-Log "Could not parse Python version: $pythonVersion" "ERROR"
             return $false
         }
     }

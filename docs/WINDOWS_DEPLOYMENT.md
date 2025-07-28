@@ -675,3 +675,62 @@ For additional support or questions, please refer to the main project documentat
 
 **Happy deploying on Windows!** 🪟🚀
 
+
+
+### Python Version Issues
+
+#### Python Version Not Detected Correctly
+**Error**: "Python 3.8+ is required" when you have Python 3.13+ installed
+
+**Root Cause**: Previous versions of the deployment scripts had flawed version checking logic that didn't properly handle Python 3.13 and higher versions.
+
+**Solution**: The scripts have been updated with improved version checking. If you're still experiencing issues:
+
+1. **Test Version Detection**:
+   ```cmd
+   # Test the version checking logic
+   deployment\windows\test_version_check.bat
+   
+   # Or with PowerShell
+   .\deployment\windows\test_version_check.ps1
+   ```
+
+2. **Manual Version Check**:
+   ```cmd
+   python --version
+   # Should show: Python 3.13.x (or your installed version)
+   ```
+
+3. **Force Update Scripts**:
+   ```cmd
+   git pull origin master
+   # This ensures you have the latest version checking logic
+   ```
+
+4. **Alternative Python Command**:
+   ```cmd
+   # If python command doesn't work, try:
+   py --version
+   py -3 --version
+   python3 --version
+   ```
+
+#### Version Checking Logic Explanation
+The updated scripts now properly handle:
+- ✅ Python 3.8.x through 3.13.x and beyond
+- ✅ Future Python versions (3.14+, 4.x+)
+- ✅ Proper numeric comparison instead of regex matching
+- ✅ Better error messages and debugging information
+
+#### Testing Your Installation
+Run the test scripts to verify version detection:
+```cmd
+# Batch script test
+deployment\windows\test_version_check.bat
+
+# PowerShell test
+.\deployment\windows\test_version_check.ps1
+```
+
+These test scripts will show you exactly how the version checking works and confirm your Python installation is detected correctly.
+
