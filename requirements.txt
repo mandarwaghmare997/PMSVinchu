@@ -1,82 +1,40 @@
+# PMS Intelligence Hub - Complete Requirements
+# For production deployment with all features
+
 # Core Framework
-streamlit==1.29.0
-fastapi==0.104.1
-uvicorn==0.24.0
+streamlit>=1.28.0,<2.0.0
+fastapi>=0.100.0,<1.0.0
+uvicorn>=0.20.0,<1.0.0
 
 # Data Processing
-pandas==2.1.4
-numpy==1.24.3
-openpyxl==3.1.2
-xlrd==2.0.1
+pandas>=1.5.0,<3.0.0
+numpy>=1.21.0,<2.0.0
+openpyxl>=3.0.0,<4.0.0
 
 # Database
-sqlalchemy==2.0.23
-psycopg2-binary==2.9.9
-alembic==1.13.1
+sqlalchemy>=1.4.0,<3.0.0
+alembic>=1.8.0,<2.0.0
 
 # API Integrations
-requests==2.31.0
-simple-salesforce==1.12.4
-aiohttp==3.9.1
+requests>=2.25.0,<3.0.0
+simple-salesforce>=1.12.0,<2.0.0
 
 # Visualization
-plotly==5.17.0
-matplotlib==3.8.2
-seaborn==0.13.0
+plotly>=5.0.0,<6.0.0
+matplotlib>=3.5.0,<4.0.0
 
 # PDF Generation
-reportlab==4.0.7
-weasyprint==60.2
-fpdf2==2.7.6
-
-# Authentication & Security
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
-python-multipart==0.0.6
+reportlab>=3.6.0,<5.0.0
 
 # Configuration
-python-dotenv==1.0.0
-pydantic==2.5.2
-pydantic-settings==2.1.0
-
-# Scheduling & Background Tasks
-celery==5.3.4
-redis==5.0.1
-schedule==1.2.0
-
-# Data Validation
-cerberus==1.3.5
-marshmallow==3.20.1
+python-dotenv>=0.19.0,<2.0.0
+pydantic>=1.10.0,<3.0.0
 
 # Utilities
-python-dateutil==2.8.2
-pytz==2023.3
-click==8.1.7
+python-dateutil>=2.8.0,<3.0.0
+pytz>=2022.1
 
-# Development & Testing
-pytest==7.4.3
-pytest-asyncio==0.21.1
-black==23.11.0
-flake8==6.1.0
-mypy==1.7.1
-
-# Logging
-loguru==0.7.2
-
-# File Processing
-python-magic==0.4.27
-chardet==5.2.0
-
-# Animation (for frontend)
-# Note: anime.js will be included via CDN in HTML templates
-
-# AWS SDK (for cloud deployment)
-boto3==1.34.0
-botocore==1.34.0
-
-# Monitoring
-prometheus-client==0.19.0
-
-# HTTP Client
-httpx==0.25.2
+# Optional: Database drivers (install only if needed)
+# psycopg2-binary>=2.9.0,<3.0.0  # PostgreSQL
+# redis>=4.0.0,<6.0.0            # Redis
 

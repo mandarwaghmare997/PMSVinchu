@@ -688,64 +688,35 @@ For the latest updates and releases, watch this repository and join our communit
 
 
 
-## 🪟 Windows Deployment
+## 🪟 Windows Deployment (Simplified)
 
-### Quick Windows Setup
+### ⚡ One-Command Setup
 ```cmd
 git clone https://github.com/mandarwaghmare997/PMSVinchu.git
 cd PMSVinchu
-deployment\windows\setup.bat
+deployment\windows\quick_start.bat
 ```
+**That's it!** This single command installs Python, dependencies, and starts the dashboard.
 
-### Windows Deployment Options
-
-#### 1. One-Click Setup (Recommended)
+### 🔧 Alternative Options
 ```cmd
-deployment\windows\setup.bat
-```
-Perfect for first-time users with guided interactive setup.
+# Interactive setup with progress details
+deployment\windows\setup_clean.bat
 
-#### 2. Command Line Deployment
-```cmd
 # Local development
-deployment\windows\deploy.bat local
+deployment\windows\deploy_clean.bat local
 
 # Docker deployment
-deployment\windows\deploy.bat docker
+deployment\windows\deploy_clean.bat docker
+
+# Advanced PowerShell
+.\deployment\windows\deploy.ps1 -Environment local
 ```
 
-#### 3. PowerShell Advanced
-```powershell
-# Local with verbose logging
-.\deployment\windows\deploy.ps1 -Environment local -Verbose
+### 📋 Requirements
+- Windows 10/11
+- Internet connection
+- 4GB RAM minimum
 
-# Windows service installation (requires admin)
-.\deployment\windows\deploy.ps1 -Environment service
-```
-
-#### 4. Windows Service (Production)
-```cmd
-# Install as Windows service (requires admin)
-deployment\windows\service\install_service.bat
-
-# Service management
-net start PMSIntelligenceHub
-net stop PMSIntelligenceHub
-```
-
-### Windows-Specific Features
-- **🎯 One-Click Setup**: Interactive guided installation
-- **🔧 Windows Service**: Production-ready service with auto-start
-- **🐳 Docker Desktop**: Optimized for Windows containers
-- **⚡ PowerShell**: Advanced automation with error handling
-- **📊 Monitoring**: Built-in health checks and logging
-- **🛡️ Security**: Windows-integrated authentication
-
-### Windows Requirements
-- **OS**: Windows 10 (1903+) or Windows 11
-- **Python**: 3.8+ (with "Add to PATH" enabled)
-- **Memory**: 4GB minimum, 8GB recommended
-- **Storage**: 10GB free space
-
-For detailed Windows deployment instructions, see [Windows Deployment Guide](docs/WINDOWS_DEPLOYMENT.md).
+The scripts automatically handle Python installation and dependency management.
 
