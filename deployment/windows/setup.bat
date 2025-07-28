@@ -39,24 +39,66 @@ echo ==========================================
 echo  Step 1: Checking Requirements
 echo ==========================================
 
-REM Check Python
+REM Check Python - try multiple commands
+set PYTHON_CMD=
+set PYTHON_VERSION=
+
+echo Detecting Python installation...
+
+REM Try python command first
 python --version >nul 2>&1
-if errorlevel 1 (
-    echo.
-    echo ERROR: Python is not installed!
-    echo.
-    echo Please install Python 3.8+ from: https://python.org
-    echo Make sure to:
-    echo  - Check "Add Python to PATH" during installation
-    echo  - Install for all users (recommended)
-    echo.
-    echo After installing Python, run this script again.
-    echo.
-    pause
-    exit /b 1
+if not errorlevel 1 (
+    for /f "tokens=2" %%i in ('python --version 2^>^&1') do set PYTHON_VERSION=%%i
+    set PYTHON_CMD=python
+    echo ✓ Found Python using 'python' command: !PYTHON_VERSION!
+    goto :python_found
 )
 
-for /f "tokens=2" %%i in ('python --version 2^>^&1') do set PYTHON_VERSION=%%i
+REM Try py command
+py --version >nul 2>&1
+if not errorlevel 1 (
+    for /f "tokens=2" %%i in ('py --version 2^>^&1') do set PYTHON_VERSION=%%i
+    set PYTHON_CMD=py
+    echo ✓ Found Python using 'py' command: !PYTHON_VERSION!
+    goto :python_found
+)
+
+REM Try py -3 command
+py -3 --version >nul 2>&1
+if not errorlevel 1 (
+    for /f "tokens=2" %%i in ('py -3 --version 2^>^&1') do set PYTHON_VERSION=%%i
+    set PYTHON_CMD=py -3
+    echo ✓ Found Python using 'py -3' command: !PYTHON_VERSION!
+    goto :python_found
+)
+
+REM Try python3 command
+python3 --version >nul 2>&1
+if not errorlevel 1 (
+    for /f "tokens=2" %%i in ('python3 --version 2^>^&1') do set PYTHON_VERSION=%%i
+    set PYTHON_CMD=python3
+    echo ✓ Found Python using 'python3' command: !PYTHON_VERSION!
+    goto :python_found
+)
+
+REM No Python found
+echo.
+echo ERROR: Python is not installed or not accessible!
+echo.
+echo Troubleshooting steps:
+echo 1. Run the diagnostic tool: deployment\windows\diagnose_python.bat
+echo 2. Install Python 3.8+ from: https://python.org
+echo    - Make sure to check "Add Python to PATH" during installation
+echo    - Install for all users (recommended)
+echo 3. Or add existing Python installation to PATH
+echo.
+echo After fixing Python access, run this script again.
+echo.
+pause
+exit /b 1
+
+:python_found
+REM Python version is already set in PYTHON_VERSION variable
 echo ✓ Python %PYTHON_VERSION% found
 
 REM Check Python version (check for 3.8+)
@@ -91,7 +133,8 @@ if "%MAJOR%"=="3" (
 )
 
 REM Check pip
-pip --version >nul 2>&1
+echo Checking pip availability...
+%PYTHON_CMD% -m pip --version >nul 2>&1
 if errorlevel 1 (
     echo.
     echo ERROR: pip is not available!
@@ -126,7 +169,7 @@ if exist "venv" (
 
 if not exist "venv" (
     echo Creating Python virtual environment...
-    python -m venv venv
+    %PYTHON_CMD% -m venv venv
     if errorlevel 1 (
         echo ERROR: Failed to create virtual environment
         pause
@@ -152,12 +195,12 @@ echo ==========================================
 
 REM Upgrade pip
 echo Upgrading pip...
-python -m pip install --upgrade pip --quiet
+venv\Scripts\python.exe -m pip install --upgrade pip --quiet
 
 REM Install requirements
 echo Installing application dependencies...
 echo This may take a few minutes...
-pip install -r requirements.txt --quiet
+venv\Scripts\pip.exe install -r requirements.txt --quiet
 if errorlevel 1 (
     echo ERROR: Failed to install dependencies
     echo.
@@ -233,7 +276,7 @@ pause
 
 REM Start the dashboard
 echo Starting PMS Intelligence Hub...
-streamlit run src\dashboard\main_dashboard.py --server.port 8501 --server.address 0.0.0.0
+venv\Scripts\streamlit.exe run src\dashboard\main_dashboard.py --server.port 8501 --server.address 0.0.0.0
 
 echo.
 echo Application stopped.

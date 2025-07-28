@@ -10,19 +10,58 @@ echo  PMS Intelligence Hub - Windows Setup
 echo ========================================
 echo.
 
-REM Check if Python is installed
+REM Check if Python is installed - try multiple commands
+set PYTHON_CMD=
+set PYTHON_VERSION=
+
+echo Detecting Python installation...
+
+REM Try python command first
 python --version >nul 2>&1
-if errorlevel 1 (
-    echo ERROR: Python is not installed or not in PATH
-    echo Please install Python 3.8+ from https://python.org
-    echo Make sure to check "Add Python to PATH" during installation
-    pause
-    exit /b 1
+if not errorlevel 1 (
+    for /f "tokens=2" %%i in ('python --version 2^>^&1') do set PYTHON_VERSION=%%i
+    set PYTHON_CMD=python
+    echo Found Python using 'python' command: !PYTHON_VERSION!
+    goto :python_found
 )
 
-REM Get Python version
-for /f "tokens=2" %%i in ('python --version 2^>^&1') do set PYTHON_VERSION=%%i
-echo Found Python %PYTHON_VERSION%
+REM Try py command
+py --version >nul 2>&1
+if not errorlevel 1 (
+    for /f "tokens=2" %%i in ('py --version 2^>^&1') do set PYTHON_VERSION=%%i
+    set PYTHON_CMD=py
+    echo Found Python using 'py' command: !PYTHON_VERSION!
+    goto :python_found
+)
+
+REM Try py -3 command
+py -3 --version >nul 2>&1
+if not errorlevel 1 (
+    for /f "tokens=2" %%i in ('py -3 --version 2^>^&1') do set PYTHON_VERSION=%%i
+    set PYTHON_CMD=py -3
+    echo Found Python using 'py -3' command: !PYTHON_VERSION!
+    goto :python_found
+)
+
+REM Try python3 command
+python3 --version >nul 2>&1
+if not errorlevel 1 (
+    for /f "tokens=2" %%i in ('python3 --version 2^>^&1') do set PYTHON_VERSION=%%i
+    set PYTHON_CMD=python3
+    echo Found Python using 'python3' command: !PYTHON_VERSION!
+    goto :python_found
+)
+
+echo ERROR: Python is not installed or not in PATH
+echo.
+echo Troubleshooting:
+echo 1. Run diagnostic: deployment\windows\diagnose_python.bat
+echo 2. Install Python from https://python.org
+echo 3. Make sure to check "Add Python to PATH" during installation
+pause
+exit /b 1
+
+:python_found
 
 REM Check Python version (check for 3.8+)
 REM Extract major and minor version numbers
@@ -92,7 +131,7 @@ echo.
 REM Check if virtual environment exists
 if not exist "venv" (
     echo Creating Python virtual environment...
-    python -m venv venv
+    %PYTHON_CMD% -m venv venv
     if errorlevel 1 (
         echo ERROR: Failed to create virtual environment
         pause
@@ -111,11 +150,11 @@ if errorlevel 1 (
 
 REM Upgrade pip
 echo Upgrading pip...
-python -m pip install --upgrade pip
+venv\Scripts\python.exe -m pip install --upgrade pip
 
 REM Install requirements
 echo Installing Python dependencies...
-pip install -r requirements.txt
+venv\Scripts\pip.exe install -r requirements.txt
 if errorlevel 1 (
     echo ERROR: Failed to install dependencies
     pause
@@ -151,7 +190,7 @@ echo Press Ctrl+C to stop the application
 echo.
 
 REM Start Streamlit dashboard
-streamlit run src\dashboard\main_dashboard.py --server.port 8501 --server.address 0.0.0.0
+venv\Scripts\streamlit.exe run src\dashboard\main_dashboard.py --server.port 8501 --server.address 0.0.0.0
 goto :end
 
 :deploy_docker
