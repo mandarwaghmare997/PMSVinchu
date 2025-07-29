@@ -141,17 +141,24 @@ echo  Press Ctrl+C to stop the application
 echo ================================================
 echo.
 
-REM Start the enhanced dashboard
-if exist "src\dashboard\enhanced_dashboard.py" (
-    echo Starting enhanced dashboard with advanced features...
+REM Start the ultimate dashboard
+if exist "src\dashboard\ultimate_dashboard.py" (
+    echo Starting ultimate dashboard with all advanced features...
     echo.
-    echo Enhanced Features Available:
-    echo ✅ Data Upload (Excel/CSV)
-    echo ✅ 100+ Sample Records  
-    echo ✅ Advanced Financial Metrics
-    echo ✅ Professional UI/UX
+    echo Ultimate Features Available:
+    echo ✅ Advanced Financial Metrics (Alpha, Beta, Sharpe, VaR)
+    echo ✅ Professional UI/UX with Animations  
+    echo ✅ Data Upload with Intelligent Merging
+    echo ✅ 150+ Sample Records with Realistic Data
     echo ✅ SQLite Data Persistence
+    echo ✅ Advanced Charts and Visualizations
+    echo ✅ Risk-Return Analysis
+    echo ✅ Performance Attribution
+    echo ✅ Export Capabilities (CSV, Excel, JSON)
     echo.
+    venv\Scripts\streamlit.exe run src\dashboard\ultimate_dashboard.py --server.port 8501 --server.address 0.0.0.0
+) else if exist "src\dashboard\enhanced_dashboard.py" (
+    echo Starting enhanced dashboard...
     venv\Scripts\streamlit.exe run src\dashboard\enhanced_dashboard.py --server.port 8501 --server.address 0.0.0.0
 ) else if exist "src\dashboard\simple_dashboard.py" (
     echo Starting simplified dashboard...

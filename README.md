@@ -2,7 +2,7 @@
 
 Portfolio Management Services dashboard integrating Salesforce CRM and Wealth Spectrum PMS data for SEBI-regulated entities.
 
-## 🚀 Quick Start
+### 🚀 Quick Start
 
 ### Windows (Ultimate Setup - Recommended)
 ```cmd
@@ -10,7 +10,16 @@ git clone https://github.com/mandarwaghmare997/PMSVinchu.git
 cd PMSVinchu
 deployment\windows\ultimate_setup.bat
 ```
-**Features**: Auto-admin elevation, automatic Python installation, simplified dashboard
+
+**Ultimate Features Available:**
+- ✅ **Advanced Financial Metrics** (Alpha, Beta, Sharpe, VaR)
+- ✅ **Professional UI/UX** with animations and modern design
+- ✅ **Data Upload** with intelligent Excel/CSV merging
+- ✅ **150+ Sample Records** with realistic financial data
+- ✅ **SQLite Data Persistence** with optimized performance
+- ✅ **Advanced Charts** and risk-return analysis
+- ✅ **Export Capabilities** (CSV, Excel, JSON)
+- ✅ **Real-time Filtering** and analyticsrd
 
 ### Windows (Alternative)
 ```cmd
