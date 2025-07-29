@@ -1,54 +1,66 @@
 @echo off
-REM PMS Intelligence Hub - Streamlined Windows Setup
-REM One-command setup with automatic Python installation and dependency management
+REM PMS Intelligence Hub - Interactive Setup with Visual Progress
+REM Clean, efficient setup with detailed progress indicators
 
 setlocal enabledelayedexpansion
 title PMS Intelligence Hub Setup
 
-echo.
+REM Load progress utilities
+call "%~dp0progress_utils.bat" 2>nul || (
+    echo Progress utilities not found, continuing without visual indicators...
+)
+
+cls
+call :header "PMS Intelligence Hub - Interactive Setup"
 echo ==========================================
-echo  PMS Intelligence Hub - Quick Setup
+echo  Portfolio Management Services Dashboard
+echo  Interactive Setup with Progress Tracking
 echo ==========================================
 echo.
+
+call :step 1 5 "Python Environment Check"
 
 REM Function to find working Python command
 call :find_python
 if errorlevel 1 (
-    echo No Python found. Installing Python automatically...
+    call :error "No Python found. Installing Python automatically..."
     call :install_python
     if errorlevel 1 exit /b 1
     call :find_python
     if errorlevel 1 (
-        echo ERROR: Python installation failed
+        call :error "Python installation failed"
         pause
         exit /b 1
     )
 )
 
-echo ✓ Using Python: %PYTHON_CMD%
-echo ✓ Version: %PYTHON_VERSION%
-echo.
+call :success "Using Python: %PYTHON_CMD% - Version: %PYTHON_VERSION%"
 
-REM Setup virtual environment
+call :step 2 5 "Virtual Environment Setup"
 call :setup_venv
 if errorlevel 1 exit /b 1
 
-REM Install dependencies
+call :step 3 5 "Dependency Installation"
 call :install_deps
 if errorlevel 1 exit /b 1
 
-REM Create basic config
+call :step 4 5 "Configuration Setup"
 call :create_config
 
+call :step 5 5 "Starting Application"
+call :header "🎉 Setup Complete!"
 echo.
-echo ==========================================
-echo  Setup Complete!
-echo ==========================================
+echo ┌─────────────────────────────────────────────────────┐
+echo │                                                     │
+echo │  ✅ PMS Intelligence Hub is ready!                  │
+echo │                                                     │
+echo │  Dashboard will open at: http://localhost:8501     │
+echo │  Press Ctrl+C to stop the application              │
+echo │                                                     │
+echo └─────────────────────────────────────────────────────┘
 echo.
-echo Starting PMS Intelligence Hub...
-echo Dashboard will open at: http://localhost:8501
-echo Press Ctrl+C to stop
-echo.
+
+call :animated_dots "Starting dashboard" 3
 pause
 
 REM Start application
@@ -56,23 +68,37 @@ venv\Scripts\streamlit.exe run src\dashboard\main_dashboard.py --server.port 850
 goto :eof
 
 REM ==========================================
-REM Functions
+REM Functions with Visual Progress
 REM ==========================================
 
 :find_python
 set PYTHON_CMD=
 set PYTHON_VERSION=
 
-for %%c in (python py "py -3" python3) do (
+REM Refresh PATH from registry first
+call :animated_dots "Refreshing system PATH" 2
+for /f "tokens=2*" %%a in ('reg query "HKEY_CURRENT_USER\Environment" /v PATH 2^>nul') do set "UserPath=%%b"
+for /f "tokens=2*" %%a in ('reg query "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /v PATH 2^>nul') do set "SysPath=%%b"
+set "PATH=%SysPath%;%UserPath%;C:\Python311;C:\Python311\Scripts;%LOCALAPPDATA%\Programs\Python\Python311;%LOCALAPPDATA%\Programs\Python\Python311\Scripts"
+
+call :animated_dots "Testing Python installations" 3
+for %%c in ("py -3" py python python3) do (
+    echo   Trying %%c...
     %%c --version >nul 2>&1
     if not errorlevel 1 (
         for /f "tokens=2" %%v in ('%%c --version 2^>^&1') do (
             set PYTHON_VERSION=%%v
             set PYTHON_CMD=%%c
+            echo   ✓ Found working Python: %%c (%%v)
             goto :check_version
         )
     )
 )
+
+echo No working Python found. Please run:
+echo   deployment\windows\fix_python_path.bat
+echo.
+echo Or install Python manually from https://python.org
 exit /b 1
 
 :check_version
@@ -81,29 +107,31 @@ for /f "tokens=1,2 delims=." %%a in ("%PYTHON_VERSION%") do (
     set MAJOR=%%a
     set MINOR=%%b
 )
-if %MAJOR%==3 if %MINOR% geq 8 exit /b 0
-echo ERROR: Python 3.8+ required, found %PYTHON_VERSION%
+if "%MAJOR%"=="3" if %MINOR% geq 8 exit /b 0
+call :error "Python 3.8+ required, found %PYTHON_VERSION%"
 exit /b 1
 
 :install_python
-echo.
-echo Downloading and installing Python 3.11...
+call :header "Automatic Python Installation"
+call :animated_dots "Preparing Python installation" 2
+
 if not exist temp mkdir temp
 cd temp
+
+call :download_progress "Python 3.11.7" "python.org"
 
 REM Download Python installer
 set INSTALLER=python-3.11.7-amd64.exe
 set URL=https://www.python.org/ftp/python/3.11.7/%INSTALLER%
 
-echo Downloading Python installer...
 powershell -Command "Invoke-WebRequest -Uri '%URL%' -OutFile '%INSTALLER%'" >nul 2>&1
 if errorlevel 1 (
-    echo Download failed. Please install Python manually from https://python.org
+    call :error "Download failed. Please install Python manually from https://python.org"
     cd ..
     exit /b 1
 )
 
-echo Installing Python (this may take a few minutes)...
+call :install_progress "Python 3.11.7"
 %INSTALLER% /quiet InstallAllUsers=1 PrependPath=1 Include_pip=1
 if errorlevel 1 (
     echo Installation failed. Running interactive installer...
@@ -112,56 +140,55 @@ if errorlevel 1 (
 
 cd ..
 rmdir /s /q temp 2>nul
-echo ✓ Python installation completed
-timeout /t 3 >nul
+call :success "Python installation completed"
+call :animated_dots "Waiting for PATH update" 3
 exit /b 0
 
 :setup_venv
-echo Setting up virtual environment...
+call :animated_dots "Setting up virtual environment" 2
 if exist venv rmdir /s /q venv
 %PYTHON_CMD% -m venv venv
 if errorlevel 1 (
-    echo ERROR: Failed to create virtual environment
+    call :error "Failed to create virtual environment"
     exit /b 1
 )
-echo ✓ Virtual environment created
+call :success "Virtual environment created"
 exit /b 0
 
 :install_deps
-echo Installing dependencies...
+call :animated_dots "Upgrading pip" 2
 venv\Scripts\python.exe -m pip install --upgrade pip --quiet
 
+echo Installing dependencies with progress tracking...
+
 REM Try minimal requirements first
-if exist requirements-minimal.txt (
-    echo Installing minimal requirements...
-    venv\Scripts\pip.exe install -r requirements-minimal.txt --quiet
+if exist requirements-core.txt (
+    echo Installing core requirements...
+    call :package_progress "Core Dependencies"
+    venv\Scripts\pip.exe install -r requirements-core.txt --quiet
     if not errorlevel 1 (
-        echo ✓ Minimal dependencies installed
+        call :success "Core dependencies installed"
         exit /b 0
     )
 )
 
-REM Fallback to full requirements with error handling
-echo Installing full requirements...
-venv\Scripts\pip.exe install -r requirements.txt --quiet
-if errorlevel 1 (
-    echo Some packages failed. Installing core packages individually...
-    for %%p in (streamlit pandas plotly requests python-dotenv) do (
-        echo Installing %%p...
-        venv\Scripts\pip.exe install %%p --quiet
-    )
+REM Fallback to individual packages
+echo Installing packages individually...
+for %%p in (streamlit pandas plotly requests python-dotenv) do (
+    call :package_progress "%%p"
+    venv\Scripts\pip.exe install %%p --quiet
 )
-echo ✓ Dependencies installed
+call :success "Dependencies installed"
 exit /b 0
 
 :create_config
 if not exist .env (
-    echo Creating basic configuration...
+    call :animated_dots "Creating configuration file" 2
     echo # PMS Intelligence Hub Configuration > .env
     echo SECRET_KEY=dev-secret-key-change-in-production >> .env
     echo ENVIRONMENT=development >> .env
     echo DEBUG=true >> .env
-    echo ✓ Configuration created
+    call :success "Configuration created"
 )
 exit /b 0
 
