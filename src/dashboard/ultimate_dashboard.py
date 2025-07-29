@@ -224,7 +224,7 @@ class UltimateDataManager:
                 'inception_date': inception_date.strftime('%Y-%m-%d'),
                 'age_years': age_years,
                 'client_since_years': round(client_since_years, 1),
-                'mobile': f"+91{np.random.randint(7000000000, 9999999999)}",
+                'mobile': f"+91{np.random.randint(7000000000, 9999999999, dtype=np.int64)}",
                 'email': f"client{i+1:03d}@email.com",
                 'distributor_name': np.random.choice(distributors),
                 'current_aum': round(current_aum, 2),
