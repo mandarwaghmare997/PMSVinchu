@@ -112,6 +112,9 @@ venv\Scripts\python.exe -m pip install pandas --quiet --no-warn-script-location
 echo Installing plotly...
 venv\Scripts\python.exe -m pip install plotly --quiet --no-warn-script-location
 
+echo Installing openpyxl...
+venv\Scripts\python.exe -m pip install openpyxl --quiet --no-warn-script-location
+
 echo Installing numpy...
 venv\Scripts\python.exe -m pip install numpy --quiet --no-warn-script-location
 
@@ -138,8 +141,19 @@ echo  Press Ctrl+C to stop the application
 echo ================================================
 echo.
 
-REM Start the simplified dashboard
-if exist "src\dashboard\simple_dashboard.py" (
+REM Start the enhanced dashboard
+if exist "src\dashboard\enhanced_dashboard.py" (
+    echo Starting enhanced dashboard with advanced features...
+    echo.
+    echo Enhanced Features Available:
+    echo ✅ Data Upload (Excel/CSV)
+    echo ✅ 100+ Sample Records  
+    echo ✅ Advanced Financial Metrics
+    echo ✅ Professional UI/UX
+    echo ✅ SQLite Data Persistence
+    echo.
+    venv\Scripts\streamlit.exe run src\dashboard\enhanced_dashboard.py --server.port 8501 --server.address 0.0.0.0
+) else if exist "src\dashboard\simple_dashboard.py" (
     echo Starting simplified dashboard...
     venv\Scripts\streamlit.exe run src\dashboard\simple_dashboard.py --server.port 8501 --server.address 0.0.0.0
 ) else if exist "src\dashboard\main_dashboard.py" (
