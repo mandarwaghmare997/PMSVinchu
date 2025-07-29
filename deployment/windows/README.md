@@ -1,85 +1,68 @@
-# Windows Deployment - Simplified
+# Windows Deployment Guide
 
-Clean, efficient Windows deployment for PMS Intelligence Hub.
+## Quick Start (Recommended)
 
-## 🚀 Quick Start (One Command)
-
+**Single Command Setup:**
 ```cmd
-deployment\windows\quick_start.bat
+deployment\windows\ultimate_setup.bat
 ```
 
-This single command will:
-- ✅ Install Python automatically (if needed)
+This script will:
+- ✅ Automatically run as Administrator
+- ✅ Install Python if not found
 - ✅ Create virtual environment
-- ✅ Install dependencies
+- ✅ Install all dependencies
 - ✅ Start the dashboard
 
-## 📁 Files
+## What It Does
 
-| File | Purpose |
-|------|---------|
-| `quick_start.bat` | **One-command setup** - Recommended for everyone |
-| `setup_clean.bat` | Interactive setup with detailed progress |
-| `deploy_clean.bat` | Local or Docker deployment |
-| `deploy.ps1` | Advanced PowerShell deployment |
+1. **Admin Check**: Automatically requests Administrator privileges
+2. **Python Detection**: Finds existing Python or installs Python 3.11.7
+3. **Environment Setup**: Creates isolated virtual environment
+4. **Package Installation**: Installs core packages (streamlit, pandas, plotly)
+5. **App Launch**: Starts the dashboard at http://localhost:8501
 
-## 🔧 Manual Options
+## Troubleshooting
 
-### Interactive Setup
-```cmd
-deployment\windows\setup_clean.bat
-```
+### If the script fails:
 
-### Local Development
-```cmd
-deployment\windows\deploy_clean.bat local
-```
+1. **Run as Administrator**: Right-click → "Run as administrator"
+2. **Check Internet**: Ensure internet connection for Python download
+3. **Antivirus**: Temporarily disable antivirus during installation
+4. **Manual Python**: Install Python from https://python.org if auto-install fails
 
-### Docker Deployment
-```cmd
-deployment\windows\deploy_clean.bat docker
-```
+### Common Issues:
 
-## 📋 Requirements
+- **"Access Denied"**: Run as Administrator
+- **"Download Failed"**: Check internet connection
+- **"Virtual Environment Failed"**: Python installation issue
 
-- **Windows 10/11** (any edition)
-- **Internet connection** (for automatic Python installation)
-- **4GB RAM** minimum
+## Alternative Scripts
 
-## 🛠️ Troubleshooting
+If `ultimate_setup.bat` doesn't work:
 
-### Python Issues
-If Python installation fails, install manually:
-1. Download from [python.org](https://python.org)
-2. Check "Add Python to PATH"
-3. Run `quick_start.bat` again
+- `simple_start.bat` - Basic setup without admin elevation
+- `setup_clean.bat` - Interactive setup with progress
+- `fix_python_path.bat` - Fix Python PATH issues
 
-### Package Installation Issues
-The scripts automatically try multiple approaches:
-1. Core packages first (streamlit, pandas, plotly)
-2. Fallback to minimal requirements
-3. Individual package installation if needed
+## Requirements
 
-### Access Issues
-- Run Command Prompt as Administrator if needed
-- Check Windows Defender/antivirus settings
-- Ensure internet connectivity
+- Windows 10 or later
+- Internet connection (for Python download if needed)
+- Administrator privileges (script will request automatically)
 
-## 🎯 What Gets Installed
+## Dashboard Access
 
-**Core packages:**
-- Streamlit (dashboard framework)
-- Pandas (data processing)
-- Plotly (charts and graphs)
-- Requests (API connections)
-- Python-dotenv (configuration)
+Once running:
+- **URL**: http://localhost:8501
+- **Stop**: Press Ctrl+C in the command window
+- **Restart**: Run the script again
 
-**Optional packages** (installed if possible):
-- FastAPI (backend API)
-- SQLAlchemy (database)
-- Additional visualization tools
+## Files Created
 
----
+- `venv/` - Virtual environment
+- `.env` - Configuration file
+- `temp/` - Temporary files (auto-deleted)
 
-**Need help?** Check the main [Windows Deployment Guide](../../docs/WINDOWS_DEPLOYMENT.md)
+The script is designed to be run multiple times safely.
 
