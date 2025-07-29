@@ -4,19 +4,26 @@ Portfolio Management Services dashboard integrating Salesforce CRM and Wealth Sp
 
 ## 🚀 Quick Start
 
-### Windows (One Command)
+### Windows (Ultimate Setup - Recommended)
 ```cmd
 git clone https://github.com/mandarwaghmare997/PMSVinchu.git
 cd PMSVinchu
-deployment\windows\quick_start.bat
+deployment\windows\ultimate_setup.bat
 ```
+**Features**: Auto-admin elevation, automatic Python installation, simplified dashboard
+
+### Windows (Alternative)
+```cmd
+deployment\windows\simple_start.bat
+```
+**Use if**: You prefer manual Python installation
 
 ### Linux/macOS
 ```bash
 git clone https://github.com/mandarwaghmare997/PMSVinchu.git
 cd PMSVinchu
-pip install -r requirements.txt
-streamlit run src/dashboard/main_dashboard.py
+pip install -r requirements-core.txt
+streamlit run src/dashboard/simple_dashboard.py
 ```
 
 ### Docker
@@ -60,10 +67,13 @@ deployment/
 ## 🛠️ Development
 
 ```bash
-# Install dependencies
-pip install -r requirements.txt
+# Install dependencies (minimal)
+pip install -r requirements-core.txt
 
-# Run dashboard
+# Run simplified dashboard
+streamlit run src/dashboard/simple_dashboard.py
+
+# Run full dashboard (if all dependencies available)
 streamlit run src/dashboard/main_dashboard.py
 
 # Run API server
@@ -76,29 +86,18 @@ pytest tests/
 ## 📚 Documentation
 
 - [Architecture Overview](ARCHITECTURE.md)
-- [Windows Deployment](docs/WINDOWS_DEPLOYMENT.md)
+- [Windows Deployment Guide](deployment/windows/README.md)
 
-## 🔒 Security & Compliance
+## 🚀 Windows Users
 
-- SEBI regulation compliance
-- Secure API key management
-- Audit logging
-- Data encryption
+**Recommended**: Use `deployment\windows\ultimate_setup.bat` for automatic setup with:
+- ✅ Administrator privilege elevation
+- ✅ Automatic Python installation
+- ✅ Simplified dashboard with sample data
+- ✅ One-command deployment
 
-## 📄 License
-
-This project is licensed under the MIT License.
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create feature branch
-3. Commit changes
-4. Push to branch
-5. Create Pull Request
-
----
+## 🌐 Access
 
 **Dashboard URL**: http://localhost:8501  
-**API Documentation**: http://localhost:8000/docs
+**API Documentation**: http://localhost:8000/docs (if running API server)
 
