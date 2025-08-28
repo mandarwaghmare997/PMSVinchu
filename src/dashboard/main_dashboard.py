@@ -1,36 +1,21 @@
 """
-PMS Intelligence Hub - Main Dashboard Application
-Interactive Streamlit dashboard for Portfolio Management Services
+PMS Intelligence Hub - Main Dashboard
+Optimized single dashboard combining all features with zero redundancy
+Author: Vulnuris Development Team
 """
 
+from typing import Dict, List, Optional
 import streamlit as st
 import pandas as pd
+import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-import numpy as np
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta
+import sqlite3
 import json
+import io
 import base64
-from typing import Dict, List, Optional, Any
-import logging
-
-# Import custom components and utilities
-from .components.sidebar import render_sidebar
-from .components.metrics_cards import render_metrics_cards
-from .components.charts import (
-    create_aum_trend_chart, create_performance_chart, 
-    create_portfolio_allocation_chart, create_client_distribution_chart
-)
-from .components.data_tables import render_client_table, render_portfolio_table
-from .components.filters import render_filters
-from .utils.data_loader import DataLoader
-from .utils.calculations import PerformanceCalculator
-from .utils.pdf_generator import generate_pdf_report
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from flows_tracker import ClientFlowsTracker
 
 # Page configuration
 st.set_page_config(
@@ -40,613 +25,518 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for enhanced styling and animations
-def load_custom_css():
-    """Load custom CSS for styling and animations"""
-    css = """
-    <style>
-    /* Import Google Fonts */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-    
-    /* Global Styles */
-    .main {
-        font-family: 'Inter', sans-serif;
-    }
-    
-    /* Header Styles */
-    .dashboard-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 2rem;
-        border-radius: 10px;
-        margin-bottom: 2rem;
-        color: white;
-        text-align: center;
-        animation: fadeInDown 0.8s ease-out;
-    }
-    
-    .dashboard-title {
-        font-size: 2.5rem;
-        font-weight: 700;
-        margin-bottom: 0.5rem;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-    }
-    
-    .dashboard-subtitle {
-        font-size: 1.2rem;
-        font-weight: 300;
-        opacity: 0.9;
-    }
-    
-    /* Metrics Cards */
-    .metric-card {
-        background: white;
-        padding: 1.5rem;
-        border-radius: 12px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        border-left: 4px solid #667eea;
-        transition: all 0.3s ease;
-        animation: slideInUp 0.6s ease-out;
-    }
-    
-    .metric-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-    }
-    
-    .metric-value {
-        font-size: 2.5rem;
-        font-weight: 700;
-        color: #2d3748;
-        margin-bottom: 0.5rem;
-        counter-reset: number;
-        animation: countUp 2s ease-out;
-    }
-    
-    .metric-label {
-        font-size: 0.9rem;
-        color: #718096;
-        font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    
-    .metric-change {
-        font-size: 0.8rem;
-        font-weight: 600;
-        margin-top: 0.5rem;
-    }
-    
-    .metric-change.positive {
-        color: #38a169;
-    }
-    
-    .metric-change.negative {
-        color: #e53e3e;
-    }
-    
-    /* Chart Containers */
-    .chart-container {
-        background: white;
-        padding: 1.5rem;
-        border-radius: 12px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        margin-bottom: 2rem;
-        animation: fadeIn 1s ease-out;
-    }
-    
-    .chart-title {
-        font-size: 1.3rem;
-        font-weight: 600;
-        color: #2d3748;
-        margin-bottom: 1rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 2px solid #e2e8f0;
-    }
-    
-    /* Filter Section */
-    .filter-section {
-        background: #f7fafc;
-        padding: 1.5rem;
-        border-radius: 12px;
-        margin-bottom: 2rem;
-        border: 1px solid #e2e8f0;
-    }
-    
-    /* Data Tables */
-    .dataframe {
-        border: none !important;
-    }
-    
-    .dataframe thead th {
-        background-color: #667eea !important;
-        color: white !important;
-        font-weight: 600 !important;
-        border: none !important;
-    }
-    
-    .dataframe tbody tr:nth-child(even) {
-        background-color: #f8f9fa !important;
-    }
-    
-    .dataframe tbody tr:hover {
-        background-color: #e3f2fd !important;
-        transition: background-color 0.3s ease;
-    }
-    
-    /* Sidebar Styling */
-    .sidebar .sidebar-content {
-        background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
-    }
-    
-    /* Animations */
-    @keyframes fadeInDown {
-        from {
-            opacity: 0;
-            transform: translateY(-30px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-    
-    @keyframes slideInUp {
-        from {
-            opacity: 0;
-            transform: translateY(30px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-    
-    @keyframes fadeIn {
-        from {
-            opacity: 0;
-        }
-        to {
-            opacity: 1;
-        }
-    }
-    
-    @keyframes countUp {
-        from {
-            opacity: 0;
-            transform: scale(0.8);
-        }
-        to {
-            opacity: 1;
-            transform: scale(1);
-        }
-    }
-    
-    /* Loading Animation */
-    .loading-spinner {
-        display: inline-block;
-        width: 20px;
-        height: 20px;
-        border: 3px solid #f3f3f3;
-        border-top: 3px solid #667eea;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-    }
-    
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-    
-    /* Responsive Design */
-    @media (max-width: 768px) {
-        .dashboard-title {
-            font-size: 2rem;
-        }
-        
-        .metric-value {
-            font-size: 2rem;
-        }
-        
-        .chart-container {
-            padding: 1rem;
-        }
-    }
-    </style>
+class PMSIntelligenceHub:
     """
-    st.markdown(css, unsafe_allow_html=True)
-
-# Anime.js integration for enhanced animations
-def load_anime_js():
-    """Load anime.js library for advanced animations"""
-    anime_js = """
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
-    <script>
-    // Animate metric cards on load
-    anime({
-        targets: '.metric-card',
-        translateY: [50, 0],
-        opacity: [0, 1],
-        delay: anime.stagger(100),
-        duration: 800,
-        easing: 'easeOutExpo'
-    });
-    
-    // Animate chart containers
-    anime({
-        targets: '.chart-container',
-        scale: [0.9, 1],
-        opacity: [0, 1],
-        delay: anime.stagger(200, {start: 300}),
-        duration: 1000,
-        easing: 'easeOutElastic(1, .8)'
-    });
-    
-    // Number counter animation for metrics
-    function animateNumbers() {
-        const metricValues = document.querySelectorAll('.metric-value');
-        metricValues.forEach(element => {
-            const finalValue = parseFloat(element.textContent.replace(/[^0-9.-]+/g, ''));
-            if (!isNaN(finalValue)) {
-                anime({
-                    targets: element,
-                    innerHTML: [0, finalValue],
-                    duration: 2000,
-                    round: 1,
-                    easing: 'easeOutExpo',
-                    update: function(anim) {
-                        element.innerHTML = Math.round(anim.animatables[0].target.innerHTML).toLocaleString();
-                    }
-                });
-            }
-        });
-    }
-    
-    // Trigger animations when page loads
-    document.addEventListener('DOMContentLoaded', function() {
-        setTimeout(animateNumbers, 500);
-    });
-    </script>
+    Unified PMS Intelligence Hub Dashboard
+    Combines all features in a single optimized interface
     """
-    st.markdown(anime_js, unsafe_allow_html=True)
-
-class DashboardApp:
-    """Main Dashboard Application Class"""
     
     def __init__(self):
-        self.data_loader = DataLoader()
-        self.performance_calc = PerformanceCalculator()
-        self.initialize_session_state()
-    
-    def initialize_session_state(self):
-        """Initialize Streamlit session state variables"""
-        if 'data_loaded' not in st.session_state:
-            st.session_state.data_loaded = False
+        self.db_path = "pms_client_data.db"
+        self.flows_tracker = ClientFlowsTracker(self.db_path)
+        self.init_database()
         
-        if 'current_filters' not in st.session_state:
-            st.session_state.current_filters = {}
+    def init_database(self):
+        """Initialize SQLite database with optimized schema"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
         
-        if 'saved_views' not in st.session_state:
-            st.session_state.saved_views = {}
+        # Optimized clients table with proper indexing
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS clients (
+                client_id TEXT PRIMARY KEY,
+                client_name TEXT NOT NULL,
+                nav_bucket REAL,
+                inception_date DATE,
+                age_of_client INTEGER,
+                client_since REAL,
+                mobile TEXT,
+                email TEXT,
+                distributor_name TEXT,
+                current_aum REAL,
+                initial_corpus REAL,
+                additions REAL,
+                withdrawals REAL,
+                net_corpus REAL,
+                annualised_returns REAL,
+                bse_500_benchmark_returns REAL,
+                rm_name TEXT,
+                portfolio_type TEXT,
+                risk_profile TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
         
-        if 'selected_clients' not in st.session_state:
-            st.session_state.selected_clients = []
-    
-    def load_sample_data(self):
-        """Load sample data for demonstration"""
-        # Generate sample client data
+        # Create optimized indexes
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_clients_rm ON clients(rm_name)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_clients_type ON clients(portfolio_type)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_clients_aum ON clients(current_aum)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_clients_risk ON clients(risk_profile)')
+        
+        # Notes table for client notes functionality
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS client_notes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                client_id TEXT,
+                note_text TEXT,
+                created_by TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (client_id) REFERENCES clients (client_id)
+            )
+        ''')
+        
+        conn.commit()
+        conn.close()
+        
+    def load_sample_data(self) -> pd.DataFrame:
+        """Generate comprehensive sample data"""
         np.random.seed(42)
-        n_clients = 150
         
-        clients_data = {
-            'client_id': [f'CL_{i:04d}' for i in range(1, n_clients + 1)],
-            'client_name': [f'Client {i}' for i in range(1, n_clients + 1)],
-            'rm_name': np.random.choice(['John Smith', 'Sarah Johnson', 'Mike Wilson', 'Lisa Brown', 'David Lee'], n_clients),
-            'aum': np.random.lognormal(15, 1, n_clients) * 1000,  # AUM in thousands
-            'onboarding_date': pd.date_range('2020-01-01', '2024-12-31', periods=n_clients),
-            'risk_profile': np.random.choice(['Conservative', 'Moderate', 'Aggressive'], n_clients),
-            'investment_category': np.random.choice(['Equity', 'Debt', 'Hybrid', 'Multi-Asset'], n_clients),
-            'status': np.random.choice(['Active', 'Inactive'], n_clients, p=[0.9, 0.1])
+        # Indian cities and states for realistic data
+        cities = ['Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Hyderabad', 'Pune', 'Ahmedabad', 'Surat', 'Jaipur']
+        rms = ['Rajesh Kumar', 'Priya Sharma', 'Amit Patel', 'Sneha Gupta', 'Vikram Singh']
+        portfolio_types = ['Equity', 'Debt', 'Hybrid', 'Multi-Asset']
+        risk_profiles = ['Conservative', 'Moderate', 'Aggressive']
+        
+        data = []
+        for i in range(150):
+            client_id = f"CL{str(i+1).zfill(4)}"
+            inception_date = datetime.now() - timedelta(days=np.random.randint(365, 2555))
+            age = np.random.randint(25, 75)
+            client_since = (datetime.now() - inception_date).days / 365.25
+            
+            initial_corpus = np.random.uniform(10, 500)  # in Crores
+            additions = np.random.uniform(0, initial_corpus * 0.5)
+            withdrawals = np.random.uniform(0, initial_corpus * 0.3)
+            net_corpus = initial_corpus + additions - withdrawals
+            
+            # Realistic returns based on portfolio type
+            portfolio_type = np.random.choice(portfolio_types)
+            if portfolio_type == 'Equity':
+                base_return = np.random.uniform(8, 18)
+            elif portfolio_type == 'Debt':
+                base_return = np.random.uniform(6, 12)
+            else:
+                base_return = np.random.uniform(7, 15)
+                
+            annualised_returns = base_return + np.random.normal(0, 2)
+            bse_benchmark = np.random.uniform(10, 14)
+            current_aum = net_corpus * (1 + annualised_returns/100) ** client_since
+            
+            data.append({
+                'client_id': client_id,
+                'client_name': f"Client {i+1}",
+                'nav_bucket': round(current_aum, 2),
+                'inception_date': inception_date.strftime('%Y-%m-%d'),
+                'age_of_client': age,
+                'client_since': round(client_since, 1),
+                'mobile': f"{np.random.randint(7000000000, 9999999999, dtype=np.int64)}",
+                'email': f"client{i+1}@example.com",
+                'distributor_name': f"Distributor {np.random.randint(1, 20)}",
+                'current_aum': round(current_aum, 2),
+                'initial_corpus': round(initial_corpus, 2),
+                'additions': round(additions, 2),
+                'withdrawals': round(withdrawals, 2),
+                'net_corpus': round(net_corpus, 2),
+                'annualised_returns': round(annualised_returns, 2),
+                'bse_500_benchmark_returns': round(bse_benchmark, 2),
+                'rm_name': np.random.choice(rms),
+                'portfolio_type': portfolio_type,
+                'risk_profile': np.random.choice(risk_profiles)
+            })
+            
+        return pd.DataFrame(data)
+    
+    @st.cache_data(ttl=300)
+    def load_data(_self) -> pd.DataFrame:
+        """Load data with caching for performance"""
+        conn = sqlite3.connect(_self.db_path)
+        
+        try:
+            data = pd.read_sql_query("SELECT * FROM clients", conn)
+            if data.empty:
+                # Generate and insert sample data
+                sample_data = _self.load_sample_data()
+                sample_data.to_sql('clients', conn, if_exists='replace', index=False)
+                data = sample_data
+        except Exception:
+            # If table doesn't exist, create sample data
+            data = _self.load_sample_data()
+            data.to_sql('clients', conn, if_exists='replace', index=False)
+        finally:
+            conn.close()
+            
+        return data
+    
+    def render_custom_css(self):
+        """Render optimized CSS styling"""
+        st.markdown("""
+        <style>
+            /* Main header styling */
+            .main-header {
+                font-size: 2.5rem;
+                font-weight: bold;
+                background: linear-gradient(90deg, #1e3a8a, #059669);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                text-align: center;
+                margin-bottom: 2rem;
+                padding: 1rem 0;
+            }
+            
+            /* Enhanced metric cards */
+            .metric-card {
+                background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+                padding: 1.5rem;
+                border-radius: 12px;
+                border-left: 4px solid #1e3a8a;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                transition: transform 0.2s ease;
+            }
+            
+            .metric-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+            }
+            
+            .metric-value {
+                font-size: 2.5rem;
+                font-weight: bold;
+                color: #1e3a8a;
+                margin: 0;
+            }
+            
+            .metric-label {
+                font-size: 0.9rem;
+                color: #64748b;
+                margin-top: 0.5rem;
+            }
+            
+            /* Success/Warning/Danger variants */
+            .success-metric { border-left-color: #059669; }
+            .success-metric .metric-value { color: #059669; }
+            
+            .warning-metric { border-left-color: #f59e0b; }
+            .warning-metric .metric-value { color: #f59e0b; }
+            
+            .danger-metric { border-left-color: #dc2626; }
+            .danger-metric .metric-value { color: #dc2626; }
+            
+            /* Sidebar styling */
+            .css-1d391kg { padding-top: 1rem; }
+            
+            /* Hide Streamlit elements */
+            #MainMenu { visibility: hidden; }
+            footer { visibility: hidden; }
+            header { visibility: hidden; }
+            
+            /* Responsive design */
+            @media (max-width: 768px) {
+                .main-header { font-size: 2rem; }
+                .metric-value { font-size: 2rem; }
+                .metric-card { padding: 1rem; }
+            }
+        </style>
+        """, unsafe_allow_html=True)
+    
+    def render_sidebar_filters(self, data: pd.DataFrame) -> Dict:
+        """Render sidebar filters and return filter values"""
+        st.sidebar.header("🔍 Filters")
+        
+        # RM filter
+        rm_options = ['All'] + sorted(data['rm_name'].unique().tolist())
+        selected_rm = st.sidebar.selectbox("Relationship Manager", rm_options)
+        
+        # Portfolio type filter
+        portfolio_options = ['All'] + sorted(data['portfolio_type'].unique().tolist())
+        selected_portfolio = st.sidebar.selectbox("Portfolio Type", portfolio_options)
+        
+        # Risk profile filter
+        risk_options = ['All'] + sorted(data['risk_profile'].unique().tolist())
+        selected_risk = st.sidebar.selectbox("Risk Profile", risk_options)
+        
+        # AUM range filter
+        min_aum, max_aum = float(data['current_aum'].min()), float(data['current_aum'].max())
+        aum_range = st.sidebar.slider(
+            "AUM Range (₹ Cr)", 
+            min_value=min_aum, 
+            max_value=max_aum, 
+            value=(min_aum, max_aum),
+            step=1.0
+        )
+        
+        return {
+            'rm': selected_rm,
+            'portfolio_type': selected_portfolio,
+            'risk_profile': selected_risk,
+            'aum_range': aum_range
         }
-        
-        # Calculate performance metrics
-        clients_data['cagr'] = np.random.normal(12, 4, n_clients)  # CAGR in percentage
-        clients_data['alpha'] = np.random.normal(2, 1.5, n_clients)  # Alpha
-        clients_data['beta'] = np.random.normal(1, 0.3, n_clients)  # Beta
-        clients_data['sharpe_ratio'] = np.random.normal(1.2, 0.4, n_clients)  # Sharpe Ratio
-        
-        return pd.DataFrame(clients_data)
     
-    def render_header(self):
-        """Render dashboard header"""
-        header_html = """
-        <div class="dashboard-header">
-            <div class="dashboard-title">PMS Intelligence Hub</div>
-            <div class="dashboard-subtitle">Portfolio Management Services Dashboard</div>
-        </div>
-        """
-        st.markdown(header_html, unsafe_allow_html=True)
-    
-    def render_metrics_overview(self, data: pd.DataFrame):
-        """Render key metrics overview"""
-        col1, col2, col3, col4 = st.columns(4)
-        
-        # Calculate metrics
-        total_aum = data['aum'].sum()
-        total_clients = len(data[data['status'] == 'Active'])
-        avg_cagr = data['cagr'].mean()
-        avg_alpha = data['alpha'].mean()
-        
-        with col1:
-            metric_html = f"""
-            <div class="metric-card">
-                <div class="metric-value">₹{total_aum/10000000:.1f}Cr</div>
-                <div class="metric-label">Total AUM</div>
-                <div class="metric-change positive">+12.5% vs last month</div>
-            </div>
-            """
-            st.markdown(metric_html, unsafe_allow_html=True)
-        
-        with col2:
-            metric_html = f"""
-            <div class="metric-card">
-                <div class="metric-value">{total_clients}</div>
-                <div class="metric-label">Active Clients</div>
-                <div class="metric-change positive">+8 new clients</div>
-            </div>
-            """
-            st.markdown(metric_html, unsafe_allow_html=True)
-        
-        with col3:
-            metric_html = f"""
-            <div class="metric-card">
-                <div class="metric-value">{avg_cagr:.1f}%</div>
-                <div class="metric-label">Average CAGR</div>
-                <div class="metric-change positive">+0.8% vs benchmark</div>
-            </div>
-            """
-            st.markdown(metric_html, unsafe_allow_html=True)
-        
-        with col4:
-            metric_html = f"""
-            <div class="metric-card">
-                <div class="metric-value">{avg_alpha:.2f}</div>
-                <div class="metric-label">Average Alpha</div>
-                <div class="metric-change positive">Outperforming</div>
-            </div>
-            """
-            st.markdown(metric_html, unsafe_allow_html=True)
-    
-    def render_charts_section(self, data: pd.DataFrame):
-        """Render charts section"""
-        # AUM Trend Chart
-        st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-        st.markdown('<div class="chart-title">AUM Trend Over Time</div>', unsafe_allow_html=True)
-        
-        # Generate time series data for AUM trend
-        date_range = pd.date_range('2023-01-01', '2024-12-31', freq='M')
-        aum_trend = pd.DataFrame({
-            'date': date_range,
-            'aum': np.cumsum(np.random.normal(5000000, 1000000, len(date_range))) + 100000000
-        })
-        
-        fig_aum = px.line(
-            aum_trend, 
-            x='date', 
-            y='aum',
-            title='',
-            color_discrete_sequence=['#667eea']
-        )
-        fig_aum.update_layout(
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)',
-            font=dict(family="Inter, sans-serif"),
-            showlegend=False,
-            margin=dict(l=0, r=0, t=0, b=0)
-        )
-        fig_aum.update_traces(line=dict(width=3))
-        fig_aum.update_xaxes(showgrid=True, gridwidth=1, gridcolor='rgba(0,0,0,0.1)')
-        fig_aum.update_yaxes(showgrid=True, gridwidth=1, gridcolor='rgba(0,0,0,0.1)')
-        
-        st.plotly_chart(fig_aum, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Portfolio Performance and Client Distribution
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-            st.markdown('<div class="chart-title">Performance Distribution</div>', unsafe_allow_html=True)
-            
-            fig_perf = px.histogram(
-                data, 
-                x='cagr', 
-                nbins=20,
-                title='',
-                color_discrete_sequence=['#764ba2']
-            )
-            fig_perf.update_layout(
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(family="Inter, sans-serif"),
-                showlegend=False,
-                margin=dict(l=0, r=0, t=0, b=0)
-            )
-            
-            st.plotly_chart(fig_perf, use_container_width=True)
-            st.markdown('</div>', unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-            st.markdown('<div class="chart-title">Investment Category Distribution</div>', unsafe_allow_html=True)
-            
-            category_counts = data['investment_category'].value_counts()
-            fig_pie = px.pie(
-                values=category_counts.values,
-                names=category_counts.index,
-                title='',
-                color_discrete_sequence=['#667eea', '#764ba2', '#f093fb', '#f5576c']
-            )
-            fig_pie.update_layout(
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(family="Inter, sans-serif"),
-                margin=dict(l=0, r=0, t=0, b=0)
-            )
-            
-            st.plotly_chart(fig_pie, use_container_width=True)
-            st.markdown('</div>', unsafe_allow_html=True)
-    
-    def render_data_tables(self, data: pd.DataFrame):
-        """Render data tables section"""
-        st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-        st.markdown('<div class="chart-title">Client Portfolio Overview</div>', unsafe_allow_html=True)
-        
-        # Prepare display data
-        display_data = data[['client_name', 'rm_name', 'aum', 'cagr', 'alpha', 'investment_category', 'status']].copy()
-        display_data['aum'] = display_data['aum'].apply(lambda x: f"₹{x/100000:.1f}L")
-        display_data['cagr'] = display_data['cagr'].apply(lambda x: f"{x:.1f}%")
-        display_data['alpha'] = display_data['alpha'].apply(lambda x: f"{x:.2f}")
-        
-        display_data.columns = ['Client Name', 'RM', 'AUM', 'CAGR', 'Alpha', 'Category', 'Status']
-        
-        st.dataframe(
-            display_data,
-            use_container_width=True,
-            hide_index=True,
-            height=400
-        )
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    def render_filters(self, data: pd.DataFrame):
-        """Render filter section"""
-        st.markdown('<div class="filter-section">', unsafe_allow_html=True)
-        st.subheader("🔍 Filters & Search")
-        
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            rm_filter = st.multiselect(
-                "Relationship Manager",
-                options=data['rm_name'].unique(),
-                default=[]
-            )
-        
-        with col2:
-            category_filter = st.multiselect(
-                "Investment Category",
-                options=data['investment_category'].unique(),
-                default=[]
-            )
-        
-        with col3:
-            risk_filter = st.multiselect(
-                "Risk Profile",
-                options=data['risk_profile'].unique(),
-                default=[]
-            )
-        
-        with col4:
-            aum_range = st.slider(
-                "AUM Range (Lakhs)",
-                min_value=int(data['aum'].min()/100000),
-                max_value=int(data['aum'].max()/100000),
-                value=(int(data['aum'].min()/100000), int(data['aum'].max()/100000))
-            )
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Apply filters
+    def apply_filters(self, data: pd.DataFrame, filters: Dict) -> pd.DataFrame:
+        """Apply filters to data"""
         filtered_data = data.copy()
         
-        if rm_filter:
-            filtered_data = filtered_data[filtered_data['rm_name'].isin(rm_filter)]
-        
-        if category_filter:
-            filtered_data = filtered_data[filtered_data['investment_category'].isin(category_filter)]
-        
-        if risk_filter:
-            filtered_data = filtered_data[filtered_data['risk_profile'].isin(risk_filter)]
-        
+        if filters['rm'] != 'All':
+            filtered_data = filtered_data[filtered_data['rm_name'] == filters['rm']]
+            
+        if filters['portfolio_type'] != 'All':
+            filtered_data = filtered_data[filtered_data['portfolio_type'] == filters['portfolio_type']]
+            
+        if filters['risk_profile'] != 'All':
+            filtered_data = filtered_data[filtered_data['risk_profile'] == filters['risk_profile']]
+            
+        # AUM range filter
         filtered_data = filtered_data[
-            (filtered_data['aum'] >= aum_range[0] * 100000) &
-            (filtered_data['aum'] <= aum_range[1] * 100000)
+            (filtered_data['current_aum'] >= filters['aum_range'][0]) &
+            (filtered_data['current_aum'] <= filters['aum_range'][1])
         ]
         
         return filtered_data
     
-    def render_export_section(self, data: pd.DataFrame):
-        """Render export and save view section"""
-        st.markdown("---")
+    def render_key_metrics(self, data: pd.DataFrame):
+        """Render key metrics cards"""
+        col1, col2, col3, col4 = st.columns(4)
+        
+        total_aum = data['current_aum'].sum()
+        total_clients = len(data)
+        avg_aum = data['current_aum'].mean()
+        avg_returns = data['annualised_returns'].mean()
+        
+        with col1:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-value">₹{total_aum:.1f} Cr</div>
+                <div class="metric-label">Total AUM</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+        with col2:
+            st.markdown(f"""
+            <div class="metric-card success-metric">
+                <div class="metric-value">{total_clients}</div>
+                <div class="metric-label">Total Clients</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+        with col3:
+            st.markdown(f"""
+            <div class="metric-card warning-metric">
+                <div class="metric-value">₹{avg_aum:.1f} Cr</div>
+                <div class="metric-label">Average AUM</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+        with col4:
+            alpha = avg_returns - data['bse_500_benchmark_returns'].mean()
+            st.markdown(f"""
+            <div class="metric-card {'success-metric' if alpha > 0 else 'danger-metric'}">
+                <div class="metric-value">{alpha:.2f}%</div>
+                <div class="metric-label">Alpha vs BSE 500</div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    def render_charts(self, data: pd.DataFrame):
+        """Render interactive charts"""
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("📊 AUM Distribution by Portfolio Type")
+            aum_by_type = data.groupby('portfolio_type')['current_aum'].sum().reset_index()
+            fig_pie = px.pie(
+                aum_by_type, 
+                values='current_aum', 
+                names='portfolio_type',
+                color_discrete_sequence=px.colors.qualitative.Set3
+            )
+            fig_pie.update_layout(height=400)
+            st.plotly_chart(fig_pie, use_container_width=True)
+            
+        with col2:
+            st.subheader("📈 Returns vs AUM Analysis")
+            fig_scatter = px.scatter(
+                data, 
+                x='current_aum', 
+                y='annualised_returns',
+                color='risk_profile',
+                size='client_since',
+                hover_data=['client_name', 'rm_name'],
+                title="Portfolio Performance Analysis"
+            )
+            fig_scatter.update_layout(height=400)
+            st.plotly_chart(fig_scatter, use_container_width=True)
+        
+        # Performance trend chart
+        st.subheader("📊 RM Performance Comparison")
+        rm_performance = data.groupby('rm_name').agg({
+            'current_aum': 'sum',
+            'annualised_returns': 'mean',
+            'client_id': 'count'
+        }).reset_index()
+        rm_performance.columns = ['RM Name', 'Total AUM', 'Avg Returns', 'Client Count']
+        
+        fig_bar = px.bar(
+            rm_performance, 
+            x='RM Name', 
+            y='Total AUM',
+            color='Avg Returns',
+            title="RM Performance - AUM vs Returns"
+        )
+        fig_bar.update_layout(height=400)
+        st.plotly_chart(fig_bar, use_container_width=True)
+    
+    def render_client_details(self, data: pd.DataFrame):
+        """Render detailed client information table"""
+        st.subheader("👥 Client Details")
+        
+        # Search functionality
+        search_term = st.text_input("🔍 Search clients (name, ID, email, RM)")
+        if search_term:
+            mask = (
+                data['client_name'].str.contains(search_term, case=False, na=False) |
+                data['client_id'].str.contains(search_term, case=False, na=False) |
+                data['email'].str.contains(search_term, case=False, na=False) |
+                data['rm_name'].str.contains(search_term, case=False, na=False)
+            )
+            data = data[mask]
+        
+        # Display table with formatting
+        display_data = data[[
+            'client_id', 'client_name', 'current_aum', 'annualised_returns', 
+            'bse_500_benchmark_returns', 'rm_name', 'portfolio_type', 'risk_profile'
+        ]].copy()
+        
+        # Format columns
+        display_data['current_aum'] = display_data['current_aum'].apply(lambda x: f"₹{x:.2f} Cr")
+        display_data['annualised_returns'] = display_data['annualised_returns'].apply(lambda x: f"{x:.2f}%")
+        display_data['bse_500_benchmark_returns'] = display_data['bse_500_benchmark_returns'].apply(lambda x: f"{x:.2f}%")
+        
+        st.dataframe(
+            display_data,
+            use_container_width=True,
+            height=400
+        )
+    
+    def render_data_management(self, data: pd.DataFrame):
+        """Render data management options"""
+        st.subheader("📁 Data Management")
+        
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            if st.button("📊 Export to PDF", type="primary"):
-                with st.spinner("Generating PDF report..."):
-                    # Simulate PDF generation
-                    st.success("PDF report generated successfully!")
-                    st.download_button(
-                        label="Download PDF Report",
-                        data=b"Sample PDF content",  # In real implementation, this would be actual PDF bytes
-                        file_name=f"pms_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
-                        mime="application/pdf"
-                    )
+            # File upload
+            uploaded_file = st.file_uploader(
+                "Upload Excel/CSV file", 
+                type=['xlsx', 'xls', 'csv'],
+                help="Upload client data in Excel or CSV format"
+            )
+            
+            if uploaded_file is not None:
+                if st.button("Process Upload"):
+                    try:
+                        # Read uploaded file
+                        if uploaded_file.name.endswith('.csv'):
+                            new_data = pd.read_csv(uploaded_file)
+                        else:
+                            new_data = pd.read_excel(uploaded_file)
+                        
+                        # Basic validation and cleaning
+                        required_columns = ['client_id', 'client_name', 'current_aum']
+                        if all(col in new_data.columns for col in required_columns):
+                            # Insert into database
+                            conn = sqlite3.connect(self.db_path)
+                            new_data.to_sql('clients', conn, if_exists='append', index=False)
+                            conn.close()
+                            
+                            st.success(f"Successfully uploaded {len(new_data)} records!")
+                            st.rerun()
+                        else:
+                            st.error(f"Missing required columns: {required_columns}")
+                    except Exception as e:
+                        st.error(f"Error processing file: {str(e)}")
         
         with col2:
-            view_name = st.text_input("Save Current View As:", placeholder="Enter view name")
-            if st.button("💾 Save View") and view_name:
-                st.session_state.saved_views[view_name] = st.session_state.current_filters
-                st.success(f"View '{view_name}' saved successfully!")
+            # Export options
+            if st.button("📥 Export to CSV"):
+                csv = data.to_csv(index=False)
+                st.download_button(
+                    label="Download CSV",
+                    data=csv,
+                    file_name=f"pms_data_{datetime.now().strftime('%Y%m%d')}.csv",
+                    mime="text/csv"
+                )
+            
+            if st.button("📥 Export to Excel"):
+                buffer = io.BytesIO()
+                with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+                    data.to_excel(writer, sheet_name='Client Data', index=False)
+                
+                st.download_button(
+                    label="Download Excel",
+                    data=buffer.getvalue(),
+                    file_name=f"pms_data_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
         
         with col3:
-            if st.session_state.saved_views:
-                selected_view = st.selectbox("Load Saved View:", [""] + list(st.session_state.saved_views.keys()))
-                if st.button("📂 Load View") and selected_view:
-                    st.session_state.current_filters = st.session_state.saved_views[selected_view]
-                    st.success(f"View '{selected_view}' loaded!")
+            # Clear data option
+            if st.button("🗑️ Clear All Data", type="secondary"):
+                if st.checkbox("I confirm I want to delete all data"):
+                    conn = sqlite3.connect(self.db_path)
+                    cursor = conn.cursor()
+                    cursor.execute("DELETE FROM clients")
+                    cursor.execute("DELETE FROM client_notes")
+                    conn.commit()
+                    conn.close()
+                    st.success("All data cleared successfully!")
                     st.rerun()
     
     def run(self):
-        """Main application runner"""
-        # Load custom styling and animations
-        load_custom_css()
-        load_anime_js()
+        """Main dashboard execution"""
+        # Apply custom CSS
+        self.render_custom_css()
         
-        # Render header
-        self.render_header()
+        # Main header
+        st.markdown('<h1 class="main-header">PMS Intelligence Hub</h1>', unsafe_allow_html=True)
+        st.markdown("**Powered by Vulnuris** | Advanced Portfolio Management Analytics")
         
         # Load data
-        with st.spinner("Loading portfolio data..."):
-            data = self.load_sample_data()
-            st.session_state.data_loaded = True
+        data = self.load_data()
         
-        # Render filters and get filtered data
-        filtered_data = self.render_filters(data)
+        # Sidebar filters
+        filters = self.render_sidebar_filters(data)
+        filtered_data = self.apply_filters(data, filters)
         
-        # Render metrics overview
-        self.render_metrics_overview(filtered_data)
+        # Create tabs
+        tab1, tab2, tab3 = st.tabs(["📊 Dashboard", "💰 Client Flows", "📁 Data Management"])
         
-        # Render charts
-        self.render_charts_section(filtered_data)
+        with tab1:
+            if not filtered_data.empty:
+                # Key metrics
+                self.render_key_metrics(filtered_data)
+                st.divider()
+                
+                # Charts
+                self.render_charts(filtered_data)
+                st.divider()
+                
+                # Client details
+                self.render_client_details(filtered_data)
+            else:
+                st.warning("No data matches the current filters.")
+                if not data.empty:
+                    st.info(f"Total clients in database: {len(data)}")
         
-        # Render data tables
-        self.render_data_tables(filtered_data)
+        with tab2:
+            # Client flows tracking
+            self.flows_tracker.render_flows_dashboard()
         
-        # Render export section
-        self.render_export_section(filtered_data)
-        
-        # Footer
-        st.markdown("---")
-        st.markdown(
-            """
-            <div style='text-align: center; color: #718096; font-size: 0.9rem; padding: 2rem;'>
-                PMS Intelligence Hub v1.0 | Built with ❤️ for Financial Services
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+        with tab3:
+            # Data management
+            self.render_data_management(data)
 
-# Main execution
+# Run the dashboard
 if __name__ == "__main__":
-    app = DashboardApp()
-    app.run()
+    dashboard = PMSIntelligenceHub()
+    dashboard.run()
 

@@ -4,6 +4,7 @@ Fixed version with client requirements implementation
 Author: Vulnuris Development Team
 """
 
+from typing import Dict, List, Optional
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -12,8 +13,8 @@ import plotly.express as px
 from datetime import datetime, timedelta
 import sqlite3
 import json
-from flows_tracker import ClientFlowsTracker
 import io
+from flows_tracker import ClientFlowsTracker
 
 # Page configuration
 st.set_page_config(
