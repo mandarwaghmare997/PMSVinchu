@@ -156,7 +156,7 @@ if exist "src\dashboard\ultimate_dashboard.py" (
     echo ✅ Performance Attribution
     echo ✅ Export Capabilities (CSV, Excel, JSON)
     echo.
-    venv\Scripts\streamlit.exe run src\dashboard\ultimate_dashboard.py --server.port 8501 --server.address 0.0.0.0
+    venv\Scripts\streamlit.exe run src\dashboard\client_dashboard.py --server.port 8501 --server.address 0.0.0.0
 ) else if exist "src\dashboard\enhanced_dashboard.py" (
     echo Starting enhanced dashboard...
     venv\Scripts\streamlit.exe run src\dashboard\enhanced_dashboard.py --server.port 8501 --server.address 0.0.0.0
