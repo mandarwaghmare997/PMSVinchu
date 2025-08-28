@@ -23,6 +23,33 @@ class ClientFlowsTracker:
             'Bonus', 'Rights Issue', 'IPO Subscription', 'Redemption',
             'Switch In', 'Switch Out', 'SIP', 'STP', 'SWP'
         ]
+        self.init_flows_database()
+    
+    def init_flows_database(self):
+        """Initialize flows database tables"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        # Create client_flows table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS client_flows (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                client_id TEXT NOT NULL,
+                transaction_date DATE NOT NULL,
+                transaction_label TEXT NOT NULL,
+                amount REAL NOT NULL,
+                description TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (client_id) REFERENCES clients (client_id)
+            )
+        ''')
+        
+        # Create index for better performance
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_flows_client ON client_flows(client_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_flows_date ON client_flows(transaction_date)')
+        
+        conn.commit()
+        conn.close()
     
     def generate_sample_flows(self, client_ids: List[str], num_transactions: int = 200) -> pd.DataFrame:
         """Generate sample transaction flows for clients"""

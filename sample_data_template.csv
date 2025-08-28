@@ -1,0 +1,4 @@
+client_id,client_name,nav_bucket,inception_date,age_of_client,client_since,mobile,email,distributor_name,current_aum,initial_corpus,additions,withdrawals,net_corpus,annualised_returns,bse_500_benchmark_returns,rm_name,portfolio_type,risk_profile
+CL0001,Sample Client 1,25.5,2022-01-15,45,2.5,9876543210,client1@example.com,Distributor ABC,25.5,20.0,5.0,0.5,24.5,12.5,11.2,Rajesh Kumar,Equity,Moderate
+CL0002,Sample Client 2,50.75,2021-06-10,38,3.2,9876543211,client2@example.com,Distributor XYZ,50.75,40.0,12.0,1.25,50.75,15.2,11.2,Priya Sharma,Hybrid,Aggressive
+CL0003,Sample Client 3,15.25,2023-03-20,52,1.4,9876543212,client3@example.com,Distributor PQR,15.25,15.0,2.0,1.75,15.25,8.5,11.2,Amit Patel,Debt,Conservative

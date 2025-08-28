@@ -421,14 +421,70 @@ class PMSIntelligenceHub:
         """Render data management options"""
         st.subheader("📁 Data Management")
         
+        # Template download section
+        st.markdown("### 📋 Data Template")
+        col_template1, col_template2 = st.columns(2)
+        
+        with col_template1:
+            # Create template data
+            template_data = {
+                'client_id': ['CL0001', 'CL0002', 'CL0003'],
+                'client_name': ['Sample Client 1', 'Sample Client 2', 'Sample Client 3'],
+                'nav_bucket': [25.50, 50.75, 15.25],
+                'inception_date': ['2022-01-15', '2021-06-10', '2023-03-20'],
+                'age_of_client': [45, 38, 52],
+                'client_since': [2.5, 3.2, 1.4],
+                'mobile': ['9876543210', '9876543211', '9876543212'],
+                'email': ['client1@example.com', 'client2@example.com', 'client3@example.com'],
+                'distributor_name': ['Distributor ABC', 'Distributor XYZ', 'Distributor PQR'],
+                'current_aum': [25.50, 50.75, 15.25],
+                'initial_corpus': [20.00, 40.00, 15.00],
+                'additions': [5.00, 12.00, 2.00],
+                'withdrawals': [0.50, 1.25, 1.75],
+                'net_corpus': [24.50, 50.75, 15.25],
+                'annualised_returns': [12.50, 15.20, 8.50],
+                'bse_500_benchmark_returns': [11.20, 11.20, 11.20],
+                'rm_name': ['Rajesh Kumar', 'Priya Sharma', 'Amit Patel'],
+                'portfolio_type': ['Equity', 'Hybrid', 'Debt'],
+                'risk_profile': ['Moderate', 'Aggressive', 'Conservative']
+            }
+            template_df = pd.DataFrame(template_data)
+            
+            # CSV template download
+            csv_template = template_df.to_csv(index=False)
+            st.download_button(
+                label="📥 Download CSV Template",
+                data=csv_template,
+                file_name="pms_data_template.csv",
+                mime="text/csv",
+                help="Download CSV template with sample data format"
+            )
+        
+        with col_template2:
+            # Excel template download
+            buffer = io.BytesIO()
+            with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+                template_df.to_excel(writer, sheet_name='Client Data', index=False)
+            
+            st.download_button(
+                label="📥 Download Excel Template",
+                data=buffer.getvalue(),
+                file_name="pms_data_template.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                help="Download Excel template with sample data format"
+            )
+        
+        st.divider()
+        
         col1, col2, col3 = st.columns(3)
         
         with col1:
+            st.markdown("### 📤 Upload Data")
             # File upload
             uploaded_file = st.file_uploader(
                 "Upload Excel/CSV file", 
                 type=['xlsx', 'xls', 'csv'],
-                help="Upload client data in Excel or CSV format"
+                help="Upload client data in Excel or CSV format using the template above"
             )
             
             if uploaded_file is not None:
@@ -456,6 +512,7 @@ class PMSIntelligenceHub:
                         st.error(f"Error processing file: {str(e)}")
         
         with col2:
+            st.markdown("### 📥 Export Data")
             # Export options
             if st.button("📥 Export to CSV"):
                 csv = data.to_csv(index=False)
@@ -479,6 +536,7 @@ class PMSIntelligenceHub:
                 )
         
         with col3:
+            st.markdown("### 🗑️ Clear Data")
             # Clear data option
             if st.button("🗑️ Clear All Data", type="secondary"):
                 if st.checkbox("I confirm I want to delete all data"):
@@ -486,6 +544,7 @@ class PMSIntelligenceHub:
                     cursor = conn.cursor()
                     cursor.execute("DELETE FROM clients")
                     cursor.execute("DELETE FROM client_notes")
+                    cursor.execute("DELETE FROM client_flows")
                     conn.commit()
                     conn.close()
                     st.success("All data cleared successfully!")
