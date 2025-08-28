@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Client Flows - PMS Intelligence Hub</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: #f8fafc; }
+        .header { background: linear-gradient(135deg, #1e3a8a, #3b82f6); color: white; padding: 2rem; text-align: center; }
+        .nav { background: white; padding: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .nav a { margin: 0 1rem; padding: 0.5rem 1rem; text-decoration: none; color: #1e3a8a; border-radius: 8px; }
+        .nav a:hover { background: #e0e7ff; }
+        .container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; }
+        .chart { background: white; padding: 1rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 2rem; }
+        .table-container { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 1rem; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        th { background: #f8fafc; font-weight: 600; color: #374151; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>💰 Client Flows Tracker</h1>
+        <p>Transaction Analysis and Cash Flow Management</p>
+    </div>
+    
+    <div class="nav">
+        <a href="/dashboard">📊 Dashboard</a>
+        <a href="/flows">💰 Client Flows</a>
+        <a href="/data">📁 Data Management</a>
+        <a href="/">🏠 Home</a>
+    </div>
+    
+    <div class="container">
+        <div class="chart">{{ chart_flows|safe }}</div>
+        
+        <div class="table-container">
+            <h3 style="padding: 1rem; background: #f8fafc; margin: 0;">Recent Transactions</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Client ID</th>
+                        <th>Date</th>
+                        <th>Transaction Type</th>
+                        <th>Amount (₹ Cr)</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for flow in flows %}
+                    <tr>
+                        <td>{{ flow.client_id }}</td>
+                        <td>{{ flow.transaction_date }}</td>
+                        <td>{{ flow.transaction_label }}</td>
+                        <td style="color: {% if flow.amount > 0 %}#059669{% else %}#dc2626{% endif %}">
+                            {{ "%.2f"|format(flow.amount) }}
+                        </td>
+                        <td>{{ flow.description }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>
+

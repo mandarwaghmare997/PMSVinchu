@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - PMS Intelligence Hub</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: #f8fafc; }
+        .header { background: linear-gradient(135deg, #1e3a8a, #3b82f6); color: white; padding: 2rem; text-align: center; }
+        .nav { background: white; padding: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .nav a { margin: 0 1rem; padding: 0.5rem 1rem; text-decoration: none; color: #1e3a8a; border-radius: 8px; }
+        .nav a:hover { background: #e0e7ff; }
+        .container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; }
+        .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .metric { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: center; }
+        .metric h3 { color: #64748b; font-size: 0.9rem; margin-bottom: 0.5rem; }
+        .metric .value { font-size: 2rem; font-weight: bold; color: #1e3a8a; }
+        .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem; }
+        .chart { background: white; padding: 1rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .table-container { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 1rem; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        th { background: #f8fafc; font-weight: 600; color: #374151; }
+        @media (max-width: 768px) { .charts { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 PMS Intelligence Hub</h1>
+        <p>Advanced Portfolio Management Analytics</p>
+    </div>
+    
+    <div class="nav">
+        <a href="/dashboard">📊 Dashboard</a>
+        <a href="/flows">💰 Client Flows</a>
+        <a href="/data">📁 Data Management</a>
+        <a href="/">🏠 Home</a>
+    </div>
+    
+    <div class="container">
+        <div class="metrics">
+            <div class="metric">
+                <h3>TOTAL CLIENTS</h3>
+                <div class="value">{{ total_clients }}</div>
+            </div>
+            <div class="metric">
+                <h3>TOTAL AUM</h3>
+                <div class="value">{{ total_aum }}</div>
+            </div>
+            <div class="metric">
+                <h3>AVG RETURNS</h3>
+                <div class="value">{{ avg_returns }}</div>
+            </div>
+        </div>
+        
+        <div class="charts">
+            <div class="chart">{{ chart_aum|safe }}</div>
+            <div class="chart">{{ chart_returns|safe }}</div>
+        </div>
+        
+        <div class="table-container">
+            <h3 style="padding: 1rem; background: #f8fafc; margin: 0;">Recent Clients</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Client ID</th>
+                        <th>Name</th>
+                        <th>AUM (₹ Cr)</th>
+                        <th>Returns (%)</th>
+                        <th>Portfolio Type</th>
+                        <th>RM Name</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for client in clients %}
+                    <tr>
+                        <td>{{ client.client_id }}</td>
+                        <td>{{ client.client_name }}</td>
+                        <td>{{ "%.2f"|format(client.current_aum) }}</td>
+                        <td>{{ "%.2f"|format(client.annualised_returns) }}</td>
+                        <td>{{ client.portfolio_type }}</td>
+                        <td>{{ client.rm_name }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>
+
