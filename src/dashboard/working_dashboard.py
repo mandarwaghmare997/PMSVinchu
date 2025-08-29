@@ -842,6 +842,298 @@ class WorkingAdvancedDashboard:
         
         st.dataframe(comparison_data, use_container_width=True)
     
+    def create_sample_template(self) -> pd.DataFrame:
+        """Create sample data template for client download"""
+        template_data = {
+            'client_id': ['PMS0001', 'PMS0002', 'PMS0003'],
+            'client_name': ['Rajesh Kumar', 'Priya Sharma', 'Amit Patel'],
+            'current_aum': [50.25, 75.80, 120.50],
+            'initial_corpus': [45.00, 70.00, 100.00],
+            'additions': [8.50, 12.30, 25.00],
+            'withdrawals': [-3.25, -6.50, -4.50],
+            'annualised_returns': [15.75, 12.40, 18.20],
+            'bse_500_benchmark_returns': [12.50, 12.50, 12.50],
+            'portfolio_type': ['Equity', 'Hybrid', 'Multi-Asset'],
+            'risk_profile': ['Aggressive', 'Moderate', 'Balanced'],
+            'rm_name': ['Rahul Agarwal', 'Priya Jain', 'Amit Sharma'],
+            'city': ['Mumbai', 'Delhi', 'Bangalore'],
+            'age_of_client': [35, 42, 28],
+            'client_since': [2.5, 4.2, 1.8],
+            'occupation': ['Business', 'Service', 'Professional'],
+            'annual_income': [25.0, 18.5, 35.2],
+            'mobile': ['+91 9876543210', '+91 9876543211', '+91 9876543212'],
+            'email': ['rajesh.kumar@email.com', 'priya.sharma@email.com', 'amit.patel@email.com']
+        }
+        return pd.DataFrame(template_data)
+    
+    def validate_uploaded_data(self, uploaded_df: pd.DataFrame) -> Tuple[bool, List[str]]:
+        """Validate uploaded data format and content"""
+        errors = []
+        
+        # Required columns
+        required_columns = ['client_id', 'client_name', 'current_aum', 'annualised_returns']
+        missing_columns = [col for col in required_columns if col not in uploaded_df.columns]
+        
+        if missing_columns:
+            errors.append(f"Missing required columns: {', '.join(missing_columns)}")
+        
+        # Data type validation
+        if 'current_aum' in uploaded_df.columns:
+            try:
+                pd.to_numeric(uploaded_df['current_aum'], errors='coerce')
+            except:
+                errors.append("current_aum column must contain numeric values")
+        
+        if 'annualised_returns' in uploaded_df.columns:
+            try:
+                pd.to_numeric(uploaded_df['annualised_returns'], errors='coerce')
+            except:
+                errors.append("annualised_returns column must contain numeric values")
+        
+        # Check for duplicate client IDs
+        if 'client_id' in uploaded_df.columns:
+            duplicates = uploaded_df['client_id'].duplicated().sum()
+            if duplicates > 0:
+                errors.append(f"Found {duplicates} duplicate client IDs")
+        
+        return len(errors) == 0, errors
+    
+    def merge_uploaded_data(self, existing_data: pd.DataFrame, uploaded_data: pd.DataFrame) -> pd.DataFrame:
+        """Intelligently merge uploaded data with existing data"""
+        # Remove duplicates from uploaded data based on client_id
+        uploaded_data = uploaded_data.drop_duplicates(subset=['client_id'], keep='last')
+        
+        # Update existing clients and add new ones
+        merged_data = existing_data.copy()
+        
+        for _, new_row in uploaded_data.iterrows():
+            client_id = new_row['client_id']
+            
+            # Check if client exists
+            if client_id in merged_data['client_id'].values:
+                # Update existing client
+                merged_data.loc[merged_data['client_id'] == client_id] = new_row
+            else:
+                # Add new client
+                merged_data = pd.concat([merged_data, pd.DataFrame([new_row])], ignore_index=True)
+        
+        return merged_data
+    
+    def render_data_management_section(self):
+        """Render comprehensive data management with upload/download functionality"""
+        st.markdown("## 📁 Data Management")
+        
+        # Create tabs for different data management functions
+        data_tab1, data_tab2, data_tab3 = st.tabs(["📥 Upload Data", "📊 Sample Templates", "📤 Export Data"])
+        
+        with data_tab1:
+            st.markdown("### Upload Client Data")
+            st.info("Upload your client data in Excel (.xlsx) or CSV (.csv) format. Use our sample template for the correct format.")
+            
+            uploaded_file = st.file_uploader(
+                "Choose a file",
+                type=['xlsx', 'csv'],
+                help="Upload Excel or CSV file with client data"
+            )
+            
+            if uploaded_file is not None:
+                try:
+                    # Read uploaded file
+                    if uploaded_file.name.endswith('.xlsx'):
+                        uploaded_df = pd.read_excel(uploaded_file)
+                    else:
+                        uploaded_df = pd.read_csv(uploaded_file)
+                    
+                    st.success(f"File uploaded successfully! Found {len(uploaded_df)} records.")
+                    
+                    # Show preview
+                    st.markdown("#### Data Preview")
+                    st.dataframe(uploaded_df.head(10), use_container_width=True)
+                    
+                    # Validate data
+                    is_valid, validation_errors = self.validate_uploaded_data(uploaded_df)
+                    
+                    if not is_valid:
+                        st.error("Data validation failed:")
+                        for error in validation_errors:
+                            st.error(f"• {error}")
+                    else:
+                        st.success("✅ Data validation passed!")
+                        
+                        # Show merge options
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            merge_option = st.radio(
+                                "Data Merge Option",
+                                ["Update existing clients", "Add as new clients only", "Replace all data"],
+                                help="Choose how to handle the uploaded data"
+                            )
+                        
+                        with col2:
+                            if st.button("💾 Save Data", type="primary"):
+                                try:
+                                    conn = sqlite3.connect(self.db_path)
+                                    
+                                    if merge_option == "Replace all data":
+                                        # Replace all data
+                                        uploaded_df.to_sql('clients', conn, if_exists='replace', index=False)
+                                        st.success(f"✅ Replaced all data with {len(uploaded_df)} new records!")
+                                    
+                                    elif merge_option == "Add as new clients only":
+                                        # Add only new clients
+                                        existing_data = pd.read_sql_query("SELECT * FROM clients", conn)
+                                        existing_ids = set(existing_data['client_id'].values)
+                                        new_clients = uploaded_df[~uploaded_df['client_id'].isin(existing_ids)]
+                                        
+                                        if len(new_clients) > 0:
+                                            new_clients.to_sql('clients', conn, if_exists='append', index=False)
+                                            st.success(f"✅ Added {len(new_clients)} new clients!")
+                                        else:
+                                            st.warning("No new clients to add (all client IDs already exist)")
+                                    
+                                    else:  # Update existing clients
+                                        # Intelligent merge
+                                        existing_data = pd.read_sql_query("SELECT * FROM clients", conn)
+                                        merged_data = self.merge_uploaded_data(existing_data, uploaded_df)
+                                        merged_data.to_sql('clients', conn, if_exists='replace', index=False)
+                                        
+                                        new_count = len(uploaded_df[~uploaded_df['client_id'].isin(existing_data['client_id'])])
+                                        updated_count = len(uploaded_df[uploaded_df['client_id'].isin(existing_data['client_id'])])
+                                        
+                                        st.success(f"✅ Data merged successfully! Added {new_count} new clients, updated {updated_count} existing clients.")
+                                    
+                                    conn.close()
+                                    
+                                    # Clear cache to refresh data
+                                    st.cache_data.clear()
+                                    st.rerun()
+                                
+                                except Exception as e:
+                                    st.error(f"Error saving data: {str(e)}")
+                
+                except Exception as e:
+                    st.error(f"Error reading file: {str(e)}")
+                    st.info("Please ensure your file is in the correct format. Download our sample template for reference.")
+        
+        with data_tab2:
+            st.markdown("### 📊 Sample Data Templates")
+            st.info("Download these templates to understand the correct data format for uploading.")
+            
+            # Create sample template
+            template_df = self.create_sample_template()
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                # Excel template download
+                excel_buffer = io.BytesIO()
+                with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+                    template_df.to_excel(writer, sheet_name='Client_Data', index=False)
+                
+                st.download_button(
+                    label="📥 Download Excel Template",
+                    data=excel_buffer.getvalue(),
+                    file_name="PMS_Client_Data_Template.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+            
+            with col2:
+                # CSV template download
+                csv_buffer = io.StringIO()
+                template_df.to_csv(csv_buffer, index=False)
+                
+                st.download_button(
+                    label="📥 Download CSV Template",
+                    data=csv_buffer.getvalue(),
+                    file_name="PMS_Client_Data_Template.csv",
+                    mime="text/csv"
+                )
+            
+            # Show template preview
+            st.markdown("#### Template Preview")
+            st.dataframe(template_df, use_container_width=True)
+            
+            # Column descriptions
+            st.markdown("#### Column Descriptions")
+            column_descriptions = {
+                'client_id': 'Unique client identifier (e.g., PMS0001)',
+                'client_name': 'Full name of the client',
+                'current_aum': 'Current Assets Under Management (₹ Crores)',
+                'initial_corpus': 'Initial investment amount (₹ Crores)',
+                'additions': 'Additional investments made (₹ Crores)',
+                'withdrawals': 'Withdrawals made (₹ Crores, negative values)',
+                'annualised_returns': 'Annual returns percentage',
+                'bse_500_benchmark_returns': 'BSE 500 benchmark returns percentage',
+                'portfolio_type': 'Type of portfolio (Equity, Hybrid, Debt, etc.)',
+                'risk_profile': 'Risk profile (Conservative, Moderate, Aggressive, Balanced)',
+                'rm_name': 'Relationship Manager name',
+                'city': 'Client city',
+                'age_of_client': 'Client age in years',
+                'client_since': 'Years since client onboarding',
+                'occupation': 'Client occupation',
+                'annual_income': 'Annual income (₹ Lakhs)',
+                'mobile': 'Mobile number with country code',
+                'email': 'Email address'
+            }
+            
+            for col, desc in column_descriptions.items():
+                st.markdown(f"**{col}**: {desc}")
+        
+        with data_tab3:
+            st.markdown("### 📤 Export Current Data")
+            
+            # Load current data
+            current_data = self.load_data()
+            
+            st.info(f"Current database contains {len(current_data)} client records.")
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                # Export all data as Excel
+                excel_buffer = io.BytesIO()
+                with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+                    current_data.to_excel(writer, sheet_name='All_Clients', index=False)
+                
+                st.download_button(
+                    label="📥 Export All Data (Excel)",
+                    data=excel_buffer.getvalue(),
+                    file_name=f"PMS_Client_Data_Export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+            
+            with col2:
+                # Export all data as CSV
+                csv_buffer = io.StringIO()
+                current_data.to_csv(csv_buffer, index=False)
+                
+                st.download_button(
+                    label="📥 Export All Data (CSV)",
+                    data=csv_buffer.getvalue(),
+                    file_name=f"PMS_Client_Data_Export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv"
+                )
+            
+            with col3:
+                # Clear all data option
+                if st.button("🗑️ Clear All Data", type="secondary"):
+                    if st.checkbox("I understand this will delete all client data"):
+                        conn = sqlite3.connect(self.db_path)
+                        cursor = conn.cursor()
+                        cursor.execute("DELETE FROM clients")
+                        cursor.execute("DELETE FROM client_notes")
+                        conn.commit()
+                        conn.close()
+                        
+                        st.success("All data cleared successfully!")
+                        st.cache_data.clear()
+                        st.rerun()
+            
+            # Show current data preview
+            st.markdown("#### Current Data Preview")
+            st.dataframe(current_data.head(10), use_container_width=True)
+    
     def render_client_notes_section(self):
         """Render client notes management"""
         st.markdown("## 📝 Notes Management")
@@ -933,7 +1225,7 @@ def main():
     """, unsafe_allow_html=True)
     
     # Create tabs
-    tab1, tab2, tab3, tab4 = st.tabs(["📊 Client Overview", "💰 Client Flows", "👤 Individual Analysis", "📝 Notes Management"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Client Overview", "💰 Client Flows", "👤 Individual Analysis", "📁 Data Management", "📝 Notes"])
     
     with tab1:
         dashboard.render_client_overview(data)
@@ -945,6 +1237,9 @@ def main():
         dashboard.render_individual_client_analysis(data)
     
     with tab4:
+        dashboard.render_data_management_section()
+    
+    with tab5:
         dashboard.render_client_notes_section()
 
 if __name__ == "__main__":
