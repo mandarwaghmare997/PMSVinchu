@@ -121,11 +121,540 @@ class AdvancedAnalyticsDashboard:
         conn.commit()
         conn.close()
     
+    def render_client_overview(self, data: pd.DataFrame):
+        """Render comprehensive client overview with multiple analytical perspectives"""
+        
+        st.markdown("## 📊 Client Overview - Comprehensive Analytics")
+        st.markdown("Analyze your portfolio from multiple perspectives with advanced visualizations.")
+        
+        # Control panel
+        col1, col2, col3 = st.columns([2, 1, 1])
+        
+        with col1:
+            view_type = st.selectbox(
+                "Select Analysis View",
+                ["Performance Analysis", "Portfolio Composition", "Geographic Analysis", 
+                 "Demographic Analysis", "RM Performance"]
+            )
+        
+        with col2:
+            chart_theme = st.selectbox(
+                "Chart Theme",
+                ["default", "dark", "minimal", "presentation"]
+            )
+        
+        with col3:
+            show_filters = st.checkbox("Show Advanced Filters", value=True)
+        
+        # Advanced filters
+        if show_filters:
+            with st.expander("🔍 Advanced Filters", expanded=True):
+                filter_col1, filter_col2, filter_col3, filter_col4 = st.columns(4)
+                
+                with filter_col1:
+                    rm_filter = st.multiselect("Relationship Manager", data['rm_name'].unique())
+                    portfolio_filter = st.multiselect("Portfolio Type", data['portfolio_type'].unique())
+                
+                with filter_col2:
+                    risk_filter = st.multiselect("Risk Profile", data['risk_profile'].unique())
+                    city_filter = st.multiselect("City", data['city'].unique())
+                
+                with filter_col3:
+                    aum_range = st.slider(
+                        "AUM Range (₹ Cr)",
+                        float(data['current_aum'].min()),
+                        float(data['current_aum'].max()),
+                        (float(data['current_aum'].min()), float(data['current_aum'].max()))
+                    )
+                
+                with filter_col4:
+                    returns_range = st.slider(
+                        "Returns Range (%)",
+                        float(data['annualised_returns'].min()),
+                        float(data['annualised_returns'].max()),
+                        (float(data['annualised_returns'].min()), float(data['annualised_returns'].max()))
+                    )
+                
+                # Apply filters
+                filtered_data = data.copy()
+                
+                if rm_filter:
+                    filtered_data = filtered_data[filtered_data['rm_name'].isin(rm_filter)]
+                if portfolio_filter:
+                    filtered_data = filtered_data[filtered_data['portfolio_type'].isin(portfolio_filter)]
+                if risk_filter:
+                    filtered_data = filtered_data[filtered_data['risk_profile'].isin(risk_filter)]
+                if city_filter:
+                    filtered_data = filtered_data[filtered_data['city'].isin(city_filter)]
+                
+                filtered_data = filtered_data[
+                    (filtered_data['current_aum'] >= aum_range[0]) &
+                    (filtered_data['current_aum'] <= aum_range[1]) &
+                    (filtered_data['annualised_returns'] >= returns_range[0]) &
+                    (filtered_data['annualised_returns'] <= returns_range[1])
+                ]
+        else:
+            filtered_data = data
+        
+        if len(filtered_data) == 0:
+            st.warning("No data matches the selected filters.")
+            return
+        
+        # Calculate metrics
+        metrics = self.calculate_comprehensive_metrics(filtered_data)
+        
+        # Key metrics display with fixed text overflow
+        col1, col2, col3, col4, col5, col6 = st.columns(6)
+        
+        with col1:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-value">₹{metrics['total_aum']:.1f}</div>
+                <div class="metric-unit">Cr</div>
+                <div class="metric-label">Total AUM</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-value">{metrics['total_clients']}</div>
+                <div class="metric-label">Total Clients</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-value">{metrics['avg_returns']:.2f}%</div>
+                <div class="metric-label">Avg Returns</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col4:
+            st.markdown(f"""
+            <div class="advanced-metric">
+                <div class="metric-value">{metrics['alpha']:.2f}%</div>
+                <div class="metric-label">Alpha</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col5:
+            st.markdown(f"""
+            <div class="advanced-metric">
+                <div class="metric-value">{metrics['sharpe_ratio']:.2f}</div>
+                <div class="metric-label">Sharpe Ratio</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col6:
+            st.markdown(f"""
+            <div class="advanced-metric">
+                <div class="metric-value">{metrics['beta']:.2f}</div>
+                <div class="metric-label">Beta</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # Create and display charts
+        charts = self.create_client_overview_charts(filtered_data, metrics, view_type, chart_theme)
+        
+        # Display charts based on view type
+        for chart_name, chart in charts.items():
+            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+            st.plotly_chart(chart, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Client details table
+        st.markdown("## 📋 Detailed Client Information")
+        
+        # Search functionality
+        search_term = st.text_input("🔍 Search clients by name, ID, or RM:")
+        if search_term:
+            mask = (
+                filtered_data['client_name'].str.contains(search_term, case=False, na=False) |
+                filtered_data['client_id'].str.contains(search_term, case=False, na=False) |
+                filtered_data['rm_name'].str.contains(search_term, case=False, na=False)
+            )
+            filtered_data = filtered_data[mask]
+        
+        # Display table
+        display_columns = [
+            'client_id', 'client_name', 'current_aum', 'annualised_returns', 
+            'portfolio_type', 'risk_profile', 'rm_name', 'city', 'age_of_client'
+        ]
+        
+        display_data = filtered_data[display_columns].copy()
+        display_data['current_aum'] = display_data['current_aum'].apply(lambda x: f"₹{x:.2f} Cr")
+        display_data['annualised_returns'] = display_data['annualised_returns'].apply(lambda x: f"{x:.2f}%")
+        
+        st.dataframe(display_data, use_container_width=True, height=400)
+    
+    def render_client_flows(self, data: pd.DataFrame):
+        """Render client flows analysis with multiple perspectives"""
+        
+        st.markdown("## 💰 Client Flows - Transaction Analysis")
+        st.markdown("Analyze transaction patterns, cash flows, and client behavior trends.")
+        
+        # Load flows data
+        flows_data = self.flows_tracker.load_flows_data()
+        
+        if len(flows_data) > 0:
+            # Flow view controls
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                flow_view_type = st.selectbox(
+                    "Select Flow Analysis View",
+                    ["Transaction Trends", "Client Flow Patterns", "Seasonal Analysis"]
+                )
+            
+            with col2:
+                flow_chart_theme = st.selectbox(
+                    "Flow Chart Theme",
+                    ["default", "dark", "minimal", "presentation"],
+                    key="flow_theme"
+                )
+            
+            # Flow filters
+            with st.expander("🔍 Flow Filters", expanded=True):
+                flow_col1, flow_col2, flow_col3 = st.columns(3)
+                
+                with flow_col1:
+                    transaction_type_filter = st.multiselect(
+                        "Transaction Type", 
+                        flows_data['transaction_label'].unique()
+                    )
+                
+                with flow_col2:
+                    client_filter = st.multiselect(
+                        "Client ID", 
+                        flows_data['client_id'].unique()[:20]  # Limit for performance
+                    )
+                
+                with flow_col3:
+                    flow_date_range = st.date_input(
+                        "Date Range",
+                        value=(datetime.now() - timedelta(days=365), datetime.now()),
+                        key="flow_date_range"
+                    )
+            
+            # Apply flow filters
+            filtered_flows = flows_data.copy()
+            
+            if transaction_type_filter:
+                filtered_flows = filtered_flows[filtered_flows['transaction_label'].isin(transaction_type_filter)]
+            
+            if client_filter:
+                filtered_flows = filtered_flows[filtered_flows['client_id'].isin(client_filter)]
+            
+            if len(flow_date_range) == 2:
+                start_date, end_date = flow_date_range
+                filtered_flows['transaction_date'] = pd.to_datetime(filtered_flows['transaction_date'])
+                filtered_flows = filtered_flows[
+                    (filtered_flows['transaction_date'].dt.date >= start_date) &
+                    (filtered_flows['transaction_date'].dt.date <= end_date)
+                ]
+            
+            # Create and display flow charts
+            flow_charts = self.create_client_flows_charts(filtered_flows, flow_view_type, flow_chart_theme)
+            
+            for chart_name, chart in flow_charts.items():
+                st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+                st.plotly_chart(chart, use_container_width=True)
+                st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Flow summary table
+            st.markdown("## 📋 Transaction Summary")
+            
+            summary_data = filtered_flows.groupby(['client_id', 'transaction_label']).agg({
+                'amount': ['sum', 'count'],
+                'transaction_date': ['min', 'max']
+            }).round(2)
+            
+            summary_data.columns = ['Total Amount', 'Transaction Count', 'First Transaction', 'Last Transaction']
+            summary_data = summary_data.reset_index()
+            
+            st.dataframe(summary_data, use_container_width=True, height=400)
+        
+        else:
+            st.info("No flow data available. Please add some transaction data first.")
+            
+            # Generate sample flows button
+            if st.button("Generate Sample Flow Data"):
+                self.flows_tracker.generate_sample_flows()
+                st.success("Sample flow data generated! Please refresh the page.")
+                st.rerun()
+    
     def render_advanced_css(self):
-        """Apply comprehensive CSS styling"""
+        """Apply comprehensive CSS styling with professional logo"""
         st.markdown("""
         <style>
+        /* Import Google Fonts */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        /* Global Styles */
+        .main {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        /* Header with Logo */
         .main-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5rem 2rem;
+            border-radius: 15px;
+            margin-bottom: 2rem;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .logo-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: white;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
+        }
+        
+        .header-text {
+            flex: 1;
+        }
+        
+        .header-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 0;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .header-subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin: 0.5rem 0 0 0;
+            font-weight: 400;
+        }
+        
+        /* Fixed Metric Cards */
+        .metric-card {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+            margin-bottom: 1rem;
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            word-wrap: break-word;
+            overflow: hidden;
+        }
+        
+        .metric-value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin-bottom: 0.3rem;
+            line-height: 1.1;
+            word-break: break-word;
+        }
+        
+        .metric-unit {
+            font-size: 1.2rem;
+            font-weight: 500;
+            opacity: 0.9;
+            margin-bottom: 0.3rem;
+        }
+        
+        .metric-label {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            line-height: 1.2;
+        }
+        
+        .advanced-metric {
+            background: linear-gradient(135deg, #4facfe, #00f2fe);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(79, 172, 254, 0.3);
+            margin-bottom: 1rem;
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            word-wrap: break-word;
+            overflow: hidden;
+        }
+        
+        .advanced-metric .metric-value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin-bottom: 0.3rem;
+            line-height: 1.1;
+            word-break: break-word;
+        }
+        
+        .advanced-metric .metric-label {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            line-height: 1.2;
+        }
+        
+        /* Chart Containers */
+        .chart-container {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            border: 1px solid #e1e5e9;
+        }
+        
+        /* Notes Cards */
+        .note-card {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .header-title {
+                font-size: 1.8rem;
+            }
+            
+            .header-subtitle {
+                font-size: 1rem;
+            }
+            
+            .logo-icon {
+                width: 50px;
+                height: 50px;
+                font-size: 1.5rem;
+            }
+            
+            .metric-value {
+                font-size: 1.8rem;
+            }
+            
+            .metric-label {
+                font-size: 0.8rem;
+            }
+        }
+        
+        /* Sidebar Styling */
+        .css-1d391kg {
+            background: linear-gradient(180deg, #f8f9fa 0%, #e9ecef 100%);
+        }
+        
+        /* Tab Styling */
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 8px;
+        }
+        
+        .stTabs [data-baseweb="tab"] {
+            height: 50px;
+            padding-left: 20px;
+            padding-right: 20px;
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            color: #495057;
+            font-weight: 500;
+        }
+        
+        .stTabs [aria-selected="true"] {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+        
+        /* Button Styling */
+        .stButton > button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 0.5rem 1rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .stButton > button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        /* Selectbox Styling */
+        .stSelectbox > div > div {
+            border-radius: 10px;
+            border: 2px solid #e1e5e9;
+        }
+        
+        /* Multiselect Styling */
+        .stMultiSelect > div > div {
+            border-radius: 10px;
+            border: 2px solid #e1e5e9;
+        }
+        
+        /* Dataframe Styling */
+        .dataframe {
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        /* Success/Error Messages */
+        .stSuccess {
+            background: linear-gradient(135deg, #51cf66, #40c057);
+            color: white;
+            border-radius: 10px;
+        }
+        
+        .stError {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+            color: white;
+            border-radius: 10px;
+        }
+        
+        .stInfo {
+            background: linear-gradient(135deg, #4dabf7, #339af0);
+            color: white;
+            border-radius: 10px;
+        }
+        
+        .stWarning {
+            background: linear-gradient(135deg, #ffd43b, #fab005);
+            color: white;
+            border-radius: 10px;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+    
+    def load_data(self) -> pd.DataFrame:
             font-size: 3.5rem;
             font-weight: bold;
             text-align: center;
@@ -1500,9 +2029,18 @@ def main():
     # Load data
     data = dashboard.load_data()
     
-    # Header
-    st.markdown('<h1 class="main-header">📊 PMS Intelligence Hub - Advanced Analytics</h1>', unsafe_allow_html=True)
-    st.markdown("**Powered by Vulnuris** | Comprehensive Graphical Overviews with Multiple Perspectives")
+    # Professional Header with Logo
+    st.markdown("""
+    <div class="main-header">
+        <div class="logo-container">
+            <div class="logo-icon">📊</div>
+            <div class="header-text">
+                <h1 class="header-title">PMS Intelligence Hub</h1>
+                <p class="header-subtitle">Advanced Analytics | Powered by Vulnuris | Comprehensive Graphical Overviews with Multiple Perspectives</p>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
     # Create tabs
     tab1, tab2, tab3, tab4 = st.tabs(["📊 Client Overview", "💰 Client Flows", "👤 Individual Analysis", "📝 Notes Management"])
