@@ -144,7 +144,7 @@ class AdvancedAnalyticsDashboard:
         
         .metric-card {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 2rem;
+            padding: 1.5rem;
             border-radius: 20px;
             color: white;
             text-align: center;
@@ -152,6 +152,11 @@ class AdvancedAnalyticsDashboard:
             margin-bottom: 1.5rem;
             transition: all 0.3s ease;
             border: 1px solid rgba(255,255,255,0.1);
+            min-height: 140px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            overflow: hidden;
         }
         
         .metric-card:hover {
@@ -160,16 +165,19 @@ class AdvancedAnalyticsDashboard:
         }
         
         .metric-value {
-            font-size: 3rem;
+            font-size: 2.2rem;
             font-weight: bold;
             margin-bottom: 0.5rem;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            word-wrap: break-word;
+            line-height: 1.1;
         }
         
         .metric-label {
-            font-size: 1.1rem;
+            font-size: 1rem;
             opacity: 0.9;
             font-weight: 500;
+            word-wrap: break-word;
         }
         
         .chart-container {
@@ -1076,6 +1084,303 @@ class AdvancedAnalyticsDashboard:
         
         return charts
     
+    def create_individual_client_analysis(self, data: pd.DataFrame, selected_clients: List[str], theme: str):
+        """Create comprehensive individual client analysis charts"""
+        
+        if not selected_clients:
+            return {}
+        
+        # Filter data for selected clients
+        client_data = data[data['client_id'].isin(selected_clients)]
+        
+        charts = {}
+        
+        # 1. Client Performance Comparison
+        fig_performance = go.Figure()
+        
+        colors = px.colors.qualitative.Set3
+        
+        for i, client_id in enumerate(selected_clients):
+            client_info = client_data[client_data['client_id'] == client_id].iloc[0]
+            
+            fig_performance.add_trace(go.Bar(
+                name=f"{client_info['client_name']} ({client_id})",
+                x=['Returns', 'Benchmark', 'Alpha'],
+                y=[
+                    client_info['annualised_returns'],
+                    client_info['bse_500_benchmark_returns'],
+                    client_info['annualised_returns'] - client_info['bse_500_benchmark_returns']
+                ],
+                marker_color=colors[i % len(colors)],
+                text=[
+                    f"{client_info['annualised_returns']:.2f}%",
+                    f"{client_info['bse_500_benchmark_returns']:.2f}%",
+                    f"{client_info['annualised_returns'] - client_info['bse_500_benchmark_returns']:.2f}%"
+                ],
+                textposition='auto'
+            ))
+        
+        fig_performance.update_layout(
+            title="Client Performance Comparison",
+            xaxis_title="Metrics",
+            yaxis_title="Returns (%)",
+            height=500,
+            template=self.chart_themes[theme],
+            barmode='group'
+        )
+        
+        charts['performance_comparison'] = fig_performance
+        
+        # 2. AUM and Portfolio Composition
+        fig_aum = go.Figure()
+        
+        for i, client_id in enumerate(selected_clients):
+            client_info = client_data[client_data['client_id'] == client_id].iloc[0]
+            
+            fig_aum.add_trace(go.Bar(
+                name=f"{client_info['client_name']}",
+                x=['Current AUM', 'Initial Corpus', 'Additions', 'Withdrawals'],
+                y=[
+                    client_info['current_aum'],
+                    client_info['initial_corpus'],
+                    client_info['additions'],
+                    abs(client_info['withdrawals'])
+                ],
+                marker_color=colors[i % len(colors)],
+                text=[
+                    f"₹{client_info['current_aum']:.2f} Cr",
+                    f"₹{client_info['initial_corpus']:.2f} Cr",
+                    f"₹{client_info['additions']:.2f} Cr",
+                    f"₹{abs(client_info['withdrawals']):.2f} Cr"
+                ],
+                textposition='auto'
+            ))
+        
+        fig_aum.update_layout(
+            title="AUM and Investment Flow Comparison",
+            xaxis_title="Investment Components",
+            yaxis_title="Amount (₹ Crores)",
+            height=500,
+            template=self.chart_themes[theme],
+            barmode='group'
+        )
+        
+        charts['aum_comparison'] = fig_aum
+        
+        # 3. Risk-Return Scatter for Selected Clients
+        fig_risk_return = go.Figure()
+        
+        # Add all clients as background
+        fig_risk_return.add_trace(go.Scatter(
+            x=data['annualised_returns'],
+            y=data['current_aum'],
+            mode='markers',
+            marker=dict(
+                size=8,
+                color='lightgray',
+                opacity=0.3
+            ),
+            name='All Clients',
+            hovertemplate='<b>%{text}</b><br>Returns: %{x:.2f}%<br>AUM: ₹%{y:.2f} Cr<extra></extra>',
+            text=data['client_name']
+        ))
+        
+        # Highlight selected clients
+        for i, client_id in enumerate(selected_clients):
+            client_info = client_data[client_data['client_id'] == client_id].iloc[0]
+            
+            fig_risk_return.add_trace(go.Scatter(
+                x=[client_info['annualised_returns']],
+                y=[client_info['current_aum']],
+                mode='markers+text',
+                marker=dict(
+                    size=15,
+                    color=colors[i % len(colors)],
+                    line=dict(width=2, color='white')
+                ),
+                text=[client_info['client_name']],
+                textposition="top center",
+                name=f"{client_info['client_name']}",
+                hovertemplate=f'<b>{client_info["client_name"]}</b><br>Returns: {client_info["annualised_returns"]:.2f}%<br>AUM: ₹{client_info["current_aum"]:.2f} Cr<br>Portfolio: {client_info["portfolio_type"]}<br>Risk: {client_info["risk_profile"]}<extra></extra>'
+            ))
+        
+        fig_risk_return.update_layout(
+            title="Selected Clients vs All Clients (Returns vs AUM)",
+            xaxis_title="Annualised Returns (%)",
+            yaxis_title="Current AUM (₹ Crores)",
+            height=500,
+            template=self.chart_themes[theme]
+        )
+        
+        charts['risk_return_comparison'] = fig_risk_return
+        
+        return charts
+    
+    def render_individual_client_analysis(self, data: pd.DataFrame):
+        """Render individual client analysis tab"""
+        
+        st.markdown("## 👤 Individual Client Analysis & Comparison")
+        st.markdown("Select clients to analyze their performance, portfolio composition, and compare against peers.")
+        
+        # Client selection
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            # Create client options with names and IDs
+            client_options = []
+            for _, row in data.iterrows():
+                client_options.append(f"{row['client_name']} ({row['client_id']})")
+            
+            selected_client_options = st.multiselect(
+                "Select Clients for Analysis (up to 5 recommended)",
+                client_options,
+                max_selections=5,
+                help="Choose clients to analyze and compare their performance"
+            )
+            
+            # Extract client IDs from selections
+            selected_clients = []
+            for option in selected_client_options:
+                client_id = option.split('(')[-1].replace(')', '')
+                selected_clients.append(client_id)
+        
+        with col2:
+            analysis_theme = st.selectbox(
+                "Chart Theme",
+                ["default", "dark", "minimal", "presentation"],
+                key="individual_theme"
+            )
+        
+        if not selected_clients:
+            st.info("👆 Please select one or more clients from the dropdown above to begin analysis.")
+            
+            # Show sample client cards for selection help
+            st.markdown("### 📋 Sample Clients Available for Analysis")
+            
+            sample_clients = data.head(6)
+            cols = st.columns(3)
+            
+            for i, (_, client) in enumerate(sample_clients.iterrows()):
+                with cols[i % 3]:
+                    st.markdown(f"""
+                    <div class="note-card">
+                        <strong>{client['client_name']}</strong><br>
+                        <small>ID: {client['client_id']}</small><br>
+                        AUM: ₹{client['current_aum']:.2f} Cr<br>
+                        Returns: {client['annualised_returns']:.2f}%<br>
+                        Type: {client['portfolio_type']}<br>
+                        RM: {client['rm_name']}
+                    </div>
+                    """, unsafe_allow_html=True)
+            
+            return
+        
+        # Filter data for selected clients
+        selected_data = data[data['client_id'].isin(selected_clients)]
+        
+        # Display selected client summary
+        st.markdown("### 📊 Selected Clients Summary")
+        
+        cols = st.columns(len(selected_clients))
+        for i, (_, client) in enumerate(selected_data.iterrows()):
+            with cols[i]:
+                performance_color = "green" if client['annualised_returns'] > client['bse_500_benchmark_returns'] else "red"
+                st.markdown(f"""
+                <div class="metric-card" style="background: linear-gradient(135deg, {'#10b981' if performance_color == 'green' else '#ef4444'}, {'#059669' if performance_color == 'green' else '#dc2626'});">
+                    <div class="metric-value">{client['client_name']}</div>
+                    <div class="metric-label">{client['client_id']}</div>
+                    <hr style="margin: 0.5rem 0; border-color: rgba(255,255,255,0.3);">
+                    <div style="font-size: 1.2rem; font-weight: bold;">₹{client['current_aum']:.2f} Cr</div>
+                    <div style="font-size: 1rem;">{client['annualised_returns']:.2f}% Returns</div>
+                    <div style="font-size: 0.9rem; opacity: 0.8;">{client['portfolio_type']} | {client['risk_profile']}</div>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        # Create and display individual client charts
+        charts = self.create_individual_client_analysis(data, selected_clients, analysis_theme)
+        
+        # Display charts
+        for chart_name, chart in charts.items():
+            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+            st.plotly_chart(chart, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Detailed comparison table
+        st.markdown("### 📋 Detailed Client Comparison")
+        
+        comparison_data = selected_data[[
+            'client_id', 'client_name', 'current_aum', 'annualised_returns', 
+            'bse_500_benchmark_returns', 'portfolio_type', 'risk_profile', 
+            'rm_name', 'age_of_client', 'client_since', 'city'
+        ]].copy()
+        
+        # Add calculated fields
+        comparison_data['alpha'] = comparison_data['annualised_returns'] - comparison_data['bse_500_benchmark_returns']
+        comparison_data['aum_rank'] = comparison_data['current_aum'].rank(ascending=False, method='min').astype(int)
+        comparison_data['returns_rank'] = comparison_data['annualised_returns'].rank(ascending=False, method='min').astype(int)
+        
+        # Format for display
+        display_comparison = comparison_data.copy()
+        display_comparison['current_aum'] = display_comparison['current_aum'].apply(lambda x: f"₹{x:.2f} Cr")
+        display_comparison['annualised_returns'] = display_comparison['annualised_returns'].apply(lambda x: f"{x:.2f}%")
+        display_comparison['bse_500_benchmark_returns'] = display_comparison['bse_500_benchmark_returns'].apply(lambda x: f"{x:.2f}%")
+        display_comparison['alpha'] = display_comparison['alpha'].apply(lambda x: f"{x:.2f}%")
+        display_comparison['client_since'] = display_comparison['client_since'].apply(lambda x: f"{x:.1f} years")
+        
+        # Rename columns
+        display_comparison.columns = [
+            'Client ID', 'Client Name', 'AUM', 'Returns', 'Benchmark', 
+            'Portfolio Type', 'Risk Profile', 'RM', 'Age', 'Tenure', 'City',
+            'Alpha', 'AUM Rank', 'Returns Rank'
+        ]
+        
+        st.dataframe(display_comparison, use_container_width=True)
+        
+        # Individual client flows if available
+        flows_data = self.flows_tracker.load_flows_data()
+        if len(flows_data) > 0:
+            client_flows = flows_data[flows_data['client_id'].isin(selected_clients)]
+            
+            if len(client_flows) > 0:
+                st.markdown("### 💰 Transaction History for Selected Clients")
+                
+                # Flow summary by client
+                flow_summary = client_flows.groupby(['client_id', 'transaction_label']).agg({
+                    'amount': 'sum'
+                }).reset_index()
+                
+                fig_flows = px.bar(
+                    flow_summary,
+                    x='client_id',
+                    y='amount',
+                    color='transaction_label',
+                    title="Transaction Summary by Client",
+                    labels={'amount': 'Amount (₹ Crores)', 'client_id': 'Client ID'},
+                    height=400
+                )
+                fig_flows.update_layout(template=self.chart_themes[analysis_theme])
+                
+                st.plotly_chart(fig_flows, use_container_width=True)
+                
+                # Recent transactions table
+                recent_flows = client_flows.sort_values('transaction_date', ascending=False).head(20)
+                st.markdown("#### Recent Transactions")
+                st.dataframe(
+                    recent_flows[['client_id', 'client_name', 'transaction_date', 'transaction_label', 'amount', 'description']],
+                    use_container_width=True
+                )
+        
+        # Export selected client data
+        if st.button("📥 Export Selected Client Analysis"):
+            export_data = selected_data.copy()
+            csv = export_data.to_csv(index=False)
+            st.download_button(
+                label="Download Selected Clients CSV",
+                data=csv,
+                file_name=f"selected_clients_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                mime="text/csv"
+            )
+    
     def render_client_notes_section(self, client_id: str = None):
         """Render client notes management section"""
         st.markdown("### 📝 Client Notes Management")
@@ -1181,7 +1486,7 @@ class AdvancedAnalyticsDashboard:
                     conn.close()
                     
                     st.success("Note added successfully!")
-                    st.experimental_rerun()
+                    st.rerun()
                 else:
                     st.error("Please fill in Client ID and Note Text.")
 
@@ -1199,315 +1504,20 @@ def main():
     st.markdown('<h1 class="main-header">📊 PMS Intelligence Hub - Advanced Analytics</h1>', unsafe_allow_html=True)
     st.markdown("**Powered by Vulnuris** | Comprehensive Graphical Overviews with Multiple Perspectives")
     
-    # Main tabs
-    tab1, tab2, tab3 = st.tabs(["📊 Client Overview", "💰 Client Flows", "📁 Data Management"])
+    # Create tabs
+    tab1, tab2, tab3, tab4 = st.tabs(["📊 Client Overview", "💰 Client Flows", "👤 Individual Analysis", "📝 Notes Management"])
     
     with tab1:
-        st.markdown("## 📊 Client Overview - Multiple Analytical Perspectives")
-        
-        # View controls
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            view_type = st.selectbox(
-                "Select Analysis View",
-                ["Performance Analysis", "Portfolio Composition", "Geographic Analysis", 
-                 "Demographic Analysis", "RM Performance"]
-            )
-        
-        with col2:
-            chart_theme = st.selectbox(
-                "Chart Theme",
-                ["default", "dark", "minimal", "presentation"]
-            )
-        
-        with col3:
-            show_filters = st.checkbox("Show Advanced Filters", value=True)
-        
-        # Advanced filters
-        if show_filters:
-            with st.expander("🔍 Advanced Filters", expanded=True):
-                filter_col1, filter_col2, filter_col3, filter_col4 = st.columns(4)
-                
-                with filter_col1:
-                    rm_filter = st.multiselect("Relationship Manager", data['rm_name'].unique())
-                    portfolio_filter = st.multiselect("Portfolio Type", data['portfolio_type'].unique())
-                
-                with filter_col2:
-                    risk_filter = st.multiselect("Risk Profile", data['risk_profile'].unique())
-                    city_filter = st.multiselect("City", data['city'].unique())
-                
-                with filter_col3:
-                    aum_range = st.slider(
-                        "AUM Range (₹ Cr)",
-                        float(data['current_aum'].min()),
-                        float(data['current_aum'].max()),
-                        (float(data['current_aum'].min()), float(data['current_aum'].max()))
-                    )
-                
-                with filter_col4:
-                    returns_range = st.slider(
-                        "Returns Range (%)",
-                        float(data['annualised_returns'].min()),
-                        float(data['annualised_returns'].max()),
-                        (float(data['annualised_returns'].min()), float(data['annualised_returns'].max()))
-                    )
-                
-                # Apply filters
-                filtered_data = data.copy()
-                
-                if rm_filter:
-                    filtered_data = filtered_data[filtered_data['rm_name'].isin(rm_filter)]
-                if portfolio_filter:
-                    filtered_data = filtered_data[filtered_data['portfolio_type'].isin(portfolio_filter)]
-                if risk_filter:
-                    filtered_data = filtered_data[filtered_data['risk_profile'].isin(risk_filter)]
-                if city_filter:
-                    filtered_data = filtered_data[filtered_data['city'].isin(city_filter)]
-                
-                filtered_data = filtered_data[
-                    (filtered_data['current_aum'] >= aum_range[0]) &
-                    (filtered_data['current_aum'] <= aum_range[1]) &
-                    (filtered_data['annualised_returns'] >= returns_range[0]) &
-                    (filtered_data['annualised_returns'] <= returns_range[1])
-                ]
-        else:
-            filtered_data = data
-        
-        if len(filtered_data) == 0:
-            st.warning("No data matches the selected filters.")
-            return
-        
-        # Calculate metrics
-        metrics = dashboard.calculate_comprehensive_metrics(filtered_data)
-        
-        # Key metrics display
-        col1, col2, col3, col4, col5, col6 = st.columns(6)
-        
-        with col1:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value">₹{metrics['total_aum']:.1f} Cr</div>
-                <div class="metric-label">Total AUM</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value">{metrics['total_clients']}</div>
-                <div class="metric-label">Total Clients</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col3:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value">{metrics['avg_returns']:.2f}%</div>
-                <div class="metric-label">Avg Returns</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col4:
-            st.markdown(f"""
-            <div class="advanced-metric">
-                <div class="metric-value">{metrics['alpha']:.2f}%</div>
-                <div class="metric-label">Alpha</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col5:
-            st.markdown(f"""
-            <div class="advanced-metric">
-                <div class="metric-value">{metrics['sharpe_ratio']:.2f}</div>
-                <div class="metric-label">Sharpe Ratio</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col6:
-            st.markdown(f"""
-            <div class="advanced-metric">
-                <div class="metric-value">{metrics['beta']:.2f}</div>
-                <div class="metric-label">Beta</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        # Create and display charts
-        charts = dashboard.create_client_overview_charts(filtered_data, metrics, view_type, chart_theme)
-        
-        # Display charts based on view type
-        for chart_name, chart in charts.items():
-            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-            st.plotly_chart(chart, use_container_width=True)
-            st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Client details table
-        st.markdown("## 📋 Detailed Client Information")
-        
-        # Search functionality
-        search_term = st.text_input("🔍 Search clients by name, ID, or RM:")
-        if search_term:
-            mask = (
-                filtered_data['client_name'].str.contains(search_term, case=False, na=False) |
-                filtered_data['client_id'].str.contains(search_term, case=False, na=False) |
-                filtered_data['rm_name'].str.contains(search_term, case=False, na=False)
-            )
-            filtered_data = filtered_data[mask]
-        
-        # Display table
-        display_columns = [
-            'client_id', 'client_name', 'current_aum', 'annualised_returns', 
-            'portfolio_type', 'risk_profile', 'rm_name', 'city', 'age_of_client'
-        ]
-        
-        display_data = filtered_data[display_columns].copy()
-        display_data['current_aum'] = display_data['current_aum'].apply(lambda x: f"₹{x:.2f} Cr")
-        display_data['annualised_returns'] = display_data['annualised_returns'].apply(lambda x: f"{x:.2f}%")
-        
-        st.dataframe(display_data, use_container_width=True, height=400)
-        
-        # Notes section
-        dashboard.render_client_notes_section()
+        dashboard.render_client_overview(data)
     
     with tab2:
-        st.markdown("## 💰 Client Flows - Transaction Analysis")
-        
-        # Load flows data
-        flows_data = dashboard.flows_tracker.load_flows_data()
-        
-        if len(flows_data) > 0:
-            # Flow view controls
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                flow_view_type = st.selectbox(
-                    "Select Flow Analysis View",
-                    ["Transaction Trends", "Client Flow Patterns", "Seasonal Analysis"]
-                )
-            
-            with col2:
-                flow_chart_theme = st.selectbox(
-                    "Flow Chart Theme",
-                    ["default", "dark", "minimal", "presentation"],
-                    key="flow_theme"
-                )
-            
-            # Flow filters
-            with st.expander("🔍 Flow Filters", expanded=True):
-                flow_col1, flow_col2, flow_col3 = st.columns(3)
-                
-                with flow_col1:
-                    transaction_type_filter = st.multiselect(
-                        "Transaction Type", 
-                        flows_data['transaction_label'].unique()
-                    )
-                
-                with flow_col2:
-                    client_filter = st.multiselect(
-                        "Client ID", 
-                        flows_data['client_id'].unique()[:20]  # Limit for performance
-                    )
-                
-                with flow_col3:
-                    flow_date_range = st.date_input(
-                        "Date Range",
-                        value=(datetime.now() - timedelta(days=365), datetime.now()),
-                        key="flow_date_range"
-                    )
-            
-            # Apply flow filters
-            filtered_flows = flows_data.copy()
-            
-            if transaction_type_filter:
-                filtered_flows = filtered_flows[filtered_flows['transaction_label'].isin(transaction_type_filter)]
-            
-            if client_filter:
-                filtered_flows = filtered_flows[filtered_flows['client_id'].isin(client_filter)]
-            
-            if len(flow_date_range) == 2:
-                start_date, end_date = flow_date_range
-                filtered_flows['transaction_date'] = pd.to_datetime(filtered_flows['transaction_date'])
-                filtered_flows = filtered_flows[
-                    (filtered_flows['transaction_date'].dt.date >= start_date) &
-                    (filtered_flows['transaction_date'].dt.date <= end_date)
-                ]
-            
-            # Create and display flow charts
-            flow_charts = dashboard.create_client_flows_charts(filtered_flows, flow_view_type, flow_chart_theme)
-            
-            for chart_name, chart in flow_charts.items():
-                st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-                st.plotly_chart(chart, use_container_width=True)
-                st.markdown('</div>', unsafe_allow_html=True)
-            
-            # Flow summary table
-            st.markdown("## 📋 Transaction Summary")
-            
-            summary_data = filtered_flows.groupby(['client_id', 'transaction_label']).agg({
-                'amount': ['sum', 'count'],
-                'transaction_date': ['min', 'max']
-            }).round(2)
-            
-            summary_data.columns = ['Total Amount', 'Transaction Count', 'First Transaction', 'Last Transaction']
-            summary_data = summary_data.reset_index()
-            
-            st.dataframe(summary_data, use_container_width=True, height=400)
-        
-        else:
-            st.info("No flow data available. Please add some transaction data first.")
+        dashboard.render_client_flows(data)
     
     with tab3:
-        st.markdown("## 📁 Data Management")
-        st.markdown("Upload, export, and manage your portfolio data")
-        
-        # File upload
-        uploaded_file = st.file_uploader("Choose a CSV or Excel file", type=['csv', 'xlsx', 'xls'])
-        if uploaded_file is not None:
-            try:
-                if uploaded_file.name.endswith('.csv'):
-                    new_data = pd.read_csv(uploaded_file)
-                else:
-                    new_data = pd.read_excel(uploaded_file)
-                
-                st.success(f"File uploaded successfully! {len(new_data)} records found.")
-                st.dataframe(new_data.head())
-                
-                if st.button("Import Data"):
-                    conn = sqlite3.connect(dashboard.db_path)
-                    new_data.to_sql('clients', conn, if_exists='replace', index=False)
-                    conn.close()
-                    st.success("Data imported successfully!")
-                    st.experimental_rerun()
-                    
-            except Exception as e:
-                st.error(f"Error reading file: {str(e)}")
-        
-        # Export functionality
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            if st.button("Export Client Data as CSV"):
-                csv = data.to_csv(index=False)
-                st.download_button(
-                    label="Download CSV",
-                    data=csv,
-                    file_name=f"pms_client_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                    mime="text/csv"
-                )
-        
-        with col2:
-            if st.button("Export Flow Data as CSV"):
-                flows_data = dashboard.flows_tracker.load_flows_data()
-                if len(flows_data) > 0:
-                    csv = flows_data.to_csv(index=False)
-                    st.download_button(
-                        label="Download Flow CSV",
-                        data=csv,
-                        file_name=f"pms_flow_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                        mime="text/csv"
-                    )
-                else:
-                    st.info("No flow data to export.")
+        dashboard.render_individual_client_analysis(data)
+    
+    with tab4:
+        dashboard.render_client_notes_section()
 
 if __name__ == "__main__":
     main()
