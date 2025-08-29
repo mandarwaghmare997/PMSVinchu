@@ -184,3 +184,16 @@ reports/*.csv
 .dockerignore
 docker-compose.override.yml
 
+
+# Update script backups and temporary files
+backup/
+*.backup.*
+temp_status.txt
+.env_reset_*
+pms_client_data.db_reset_*
+dashboard_db_reset_*
+
+# Preserve user data during updates (commented out to track in git but preserve locally)
+# pms_client_data.db
+# src/dashboard/pms_client_data.db
+
