@@ -78,9 +78,8 @@ class ClientFlowsTracker:
             flow = {
                 'client_id': client_id,
                 'transaction_date': transaction_date.strftime('%Y-%m-%d'),
-                'transaction_type': transaction_type,
+                'transaction_label': transaction_type,  # Match database schema
                 'amount': round(amount, 2),
-                'transaction_label': transaction_type,
                 'description': description
             }
             flows.append(flow)
@@ -116,6 +115,28 @@ class ClientFlowsTracker:
         
         conn.close()
         return flows_df
+    
+    def load_flows_data(self) -> pd.DataFrame:
+        """Load flows data - alias for load_flows_from_db for compatibility"""
+        flows_data = self.load_flows_from_db()
+        
+        # If no data exists, generate sample data
+        if len(flows_data) == 0:
+            # Get client IDs from clients table
+            conn = sqlite3.connect(self.db_path)
+            try:
+                client_ids_df = pd.read_sql_query("SELECT client_id FROM clients LIMIT 50", conn)
+                if len(client_ids_df) > 0:
+                    client_ids = client_ids_df['client_id'].tolist()
+                    sample_flows = self.generate_sample_flows(client_ids, 300)
+                    self.save_flows_to_db(sample_flows)
+                    flows_data = self.load_flows_from_db()
+            except Exception as e:
+                print(f"Error generating sample flows: {e}")
+            finally:
+                conn.close()
+        
+        return flows_data
     
     def get_client_flow_summary(self, client_id: str, years: int = 5) -> Dict:
         """Get flow summary for a specific client"""
